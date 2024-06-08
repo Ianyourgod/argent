@@ -147,6 +147,22 @@ impl Parser {
                 let right = self.parse_factor();
                 Box::new(nodes::Expression::BinOp(Box::new(nodes::Expression::Literal(nodes::Literal::Int(0))), nodes::BinOp::Subtract, right))
             },
+            lexer::TokenType::LogicalNegation => {
+                self.next_token();
+                let right = self.parse_factor();
+                Box::new(nodes::Expression::UnaryOp(nodes::UnaryOp::LogicalNegation, right))
+            },
+            lexer::TokenType::BitwiseComplement => {
+                self.next_token();
+                let right = self.parse_factor();
+                Box::new(nodes::Expression::UnaryOp(nodes::UnaryOp::BitwiseComplement, right))
+            },
+            lexer::TokenType::LParen => {
+                self.next_token();
+                let node = self.parse_expression();
+                self.next_token();
+                node
+            },
             lexer::TokenType::LBrace => {
                 self.next_token();
                 let node = self.parse_block_statement();

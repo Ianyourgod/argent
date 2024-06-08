@@ -35,6 +35,7 @@ pub enum Expression {
     Literal(Literal),
     Identifier(Identifier),
     BinOp(Box<Expression>, BinOp, Box<Expression>),
+    UnaryOp(UnaryOp, Box<Expression>),
     StatementList(StatementList),
 }
 
@@ -55,4 +56,10 @@ pub enum BinOp {
     Subtract,
     Multiply,
     Divide,
+}
+
+#[derive(Debug)]
+pub enum UnaryOp {
+    BitwiseComplement,
+    LogicalNegation,
 }
