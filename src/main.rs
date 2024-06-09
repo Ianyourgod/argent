@@ -16,7 +16,7 @@ fn main() {
     let mut p = parser::Parser::new(l);
     let program = p.parse_program();
 
-    let compiler = code_gen::CodeGen::new(program);
+    let mut compiler = code_gen::CodeGen::new(program);
 
     // write to file
     std::fs::write("output.s", compiler.generate_code()).unwrap();

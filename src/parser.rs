@@ -98,6 +98,63 @@ impl Parser {
     }
 
     fn parse_expression(&mut self) -> Box<nodes::Expression> {
+        let mut node = self.parse_logical();
+        while self.cur_token.kind == lexer::TokenType::Or {
+            let op = nodes::BinOp::Or;
+            self.next_token();
+            let right = self.parse_logical();
+            node = Box::new(nodes::Expression::BinOp(node, op, right));
+        }
+        node
+    }
+
+    fn parse_logical(&mut self) -> Box<nodes::Expression> {
+        let mut node = self.parse_equalities();
+        while self.cur_token.kind == lexer::TokenType::And {
+            let op = nodes::BinOp::And;
+            self.next_token();
+            let right = self.parse_equalities();
+            node = Box::new(nodes::Expression::BinOp(node, op, right));
+        }
+        node
+    }
+
+    fn parse_equalities(&mut self) -> Box<nodes::Expression> {
+        let mut node = self.parse_relational();
+        while self.cur_token.kind == lexer::TokenType::Equal || self.cur_token.kind == lexer::TokenType::NotEqual {
+            let op = match self.cur_token.kind {
+                lexer::TokenType::Equal => nodes::BinOp::Equal,
+                lexer::TokenType::NotEqual => nodes::BinOp::NotEqual,
+                _ => panic!("unexpected token: {:?}", self.cur_token),
+            };
+            self.next_token();
+            let right = self.parse_relational();
+            node = Box::new(nodes::Expression::BinOp(node, op, right));
+        }
+        node
+    }
+
+    fn parse_relational(&mut self) -> Box<nodes::Expression> {
+        let mut node = self.parse_additive();
+        while self.cur_token.kind == lexer::TokenType::LessThan          ||
+                self.cur_token.kind == lexer::TokenType::LessThanEqual   ||
+                self.cur_token.kind == lexer::TokenType::GreaterThan     ||
+                self.cur_token.kind == lexer::TokenType::GreaterThanEqual {
+            let op = match self.cur_token.kind {
+                lexer::TokenType::LessThan => nodes::BinOp::LessThan,
+                lexer::TokenType::LessThanEqual => nodes::BinOp::LessThanEqual,
+                lexer::TokenType::GreaterThan => nodes::BinOp::GreaterThan,
+                lexer::TokenType::GreaterThanEqual => nodes::BinOp::GreaterThanEqual,
+                _ => panic!("unexpected token: {:?}", self.cur_token),
+            };
+            self.next_token();
+            let right = self.parse_additive();
+            node = Box::new(nodes::Expression::BinOp(node, op, right));
+        }
+        node
+    }
+
+    fn parse_additive(&mut self) -> Box<nodes::Expression> {
         let mut node = self.parse_term();
         while self.cur_token.kind == lexer::TokenType::Add || self.cur_token.kind == lexer::TokenType::Subtract {
             let op = match self.cur_token.kind {
@@ -115,7 +172,6 @@ impl Parser {
     fn parse_term(&mut self) -> Box<nodes::Expression> {
         let mut node = self.parse_factor();
         while self.cur_token.kind == lexer::TokenType::Multiply || self.cur_token.kind == lexer::TokenType::Divide {
-            self.next_token();
             let op = match self.cur_token.kind {
                 lexer::TokenType::Multiply => nodes::BinOp::Multiply,
                 lexer::TokenType::Divide => nodes::BinOp::Divide,

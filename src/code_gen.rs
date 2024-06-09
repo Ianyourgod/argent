@@ -2,24 +2,25 @@ use crate::parser;
 
 pub struct CodeGen {
     pub program: parser::nodes::StatementList,
+    label_count: i32,
 }
 
 impl CodeGen {
     pub fn new(program: parser::nodes::StatementList) -> CodeGen {
-        CodeGen { program }
+        CodeGen { program, label_count: 0 }
     }
 
-    pub fn generate_code(&self) -> String {
-        let mut code = String::new();
+    pub fn generate_code(&mut self) -> String {
+        let mut code = ".globl main\n".to_string();
 
-        for stmt in &self.program.statements {
-            code.push_str(&self.generate_statement(stmt));
+        for stmt in self.program.statements.clone() { // clone to avoid borrowing issues
+            code.push_str(&(self.generate_statement(&stmt)));
         }
 
         code
     }
 
-    fn generate_statement(&self, stmt: &Box<parser::nodes::Statement>) -> String {
+    fn generate_statement(&mut self, stmt: &Box<parser::nodes::Statement>) -> String {
         match **stmt {
             parser::nodes::Statement::ReturnStatement(ref return_stmt) => {
                 self.generate_return_statement(return_stmt)
@@ -33,16 +34,16 @@ impl CodeGen {
         }
     }
 
-    fn generate_return_statement(&self, stmt: &parser::nodes::ReturnStatement) -> String {
+    fn generate_return_statement(&mut self, stmt: &parser::nodes::ReturnStatement) -> String {
         format!("{}\t# no movqing needed as return value should be in rax\n\tret", self.generate_expression(&stmt.return_value))
     }
 
-    fn generate_expression_statement(&self, stmt: &parser::nodes::ExpressionStatement) -> String {
+    fn generate_expression_statement(&mut self, stmt: &parser::nodes::ExpressionStatement) -> String {
         format!("\t{}\n", self.generate_expression(&stmt.expression))
     }
 
-    fn generate_function_declaration(&self, stmt: &parser::nodes::FunctionDeclaration) -> String {
-        let mut code = format!("\t.globl {}\n{}:\n ", stmt.function_name, stmt.function_name);
+    fn generate_function_declaration(&mut self, stmt: &parser::nodes::FunctionDeclaration) -> String {
+        let mut code = format!("{}:\n ", stmt.function_name);
         // we push rbp to the stack and then move rsp to rbp to create a new stack frame
         // whatever the fuck that means
 
@@ -53,7 +54,7 @@ impl CodeGen {
         code
     }
 
-    fn generate_expression(&self, expr: &parser::nodes::Expression) -> String {
+    fn generate_expression(&mut self, expr: &parser::nodes::Expression) -> String {
         match *expr {
             parser::nodes::Expression::Literal(ref lit) => self.generate_literal(lit),
             parser::nodes::Expression::Identifier(ref ident) => ident.value.clone(),
@@ -69,21 +70,150 @@ impl CodeGen {
         }
     }
 
-    fn generate_bin_op(&self, op: &parser::nodes::BinOp, left: &Box<parser::nodes::Expression>, right: &Box<parser::nodes::Expression>) -> String {
-        let left = self.generate_expression(left);
-        let right = self.generate_expression(right);
-
-        let out = format!("{}\tpushq %rax\n{}\tpopq %rcx\n", left, right);
+    fn generate_bin_op(&mut self, op: &parser::nodes::BinOp, left: &Box<parser::nodes::Expression>, right: &Box<parser::nodes::Expression>) -> String {
 
         match *op {
-            parser::nodes::BinOp::Add => format!("{}\taddq %rcx, %rax\n", out),
-            parser::nodes::BinOp::Subtract => format!("{}\tsubq %rcx, %rax\n", out),
-            parser::nodes::BinOp::Multiply => format!("{}\timulq %rcx, %rax\n", out),
-            parser::nodes::BinOp::Divide => format!("{}\tmovq $0, %rdx\n{} idivq %rcx\n", out, out),
+            parser::nodes::BinOp::Add => self.generate_addition(left, right),
+            parser::nodes::BinOp::Subtract => self.generate_subtraction(left, right),
+            parser::nodes::BinOp::Multiply => self.generate_multiplication(left, right),
+            parser::nodes::BinOp::Divide => self.generate_division(left, right),
+            parser::nodes::BinOp::And => self.generate_and(left, right),
+            parser::nodes::BinOp::Or => self.generate_or(left, right),
+            parser::nodes::BinOp::Equal => self.generate_comparison("sete", left, right),
+            parser::nodes::BinOp::NotEqual => self.generate_comparison("setne", left, right),
+            parser::nodes::BinOp::LessThan => self.generate_comparison("setl", left, right),
+            parser::nodes::BinOp::LessThanEqual => self.generate_comparison("setle", left, right),
+            parser::nodes::BinOp::GreaterThan => self.generate_comparison("setg", left, right),
+            parser::nodes::BinOp::GreaterThanEqual => self.generate_comparison("setge", left, right),
         }
     }
 
-    fn generate_unary_op(&self, op: &parser::nodes::UnaryOp, expr: &Box<parser::nodes::Expression>) -> String {
+    fn generate_addition(&mut self, left: &Box<parser::nodes::Expression>, right: &Box<parser::nodes::Expression>) -> String {
+        let left = self.generate_expression(left);
+        let right = self.generate_expression(right);
+
+        /*/
+         * {left}
+         * pushq %rax
+         * {right}
+         * popq %rcx
+         * addq %rcx, %rax
+         */
+
+        format!("{}\tpushq %rax\n{}popq %rcx\n\taddq %rax, %rcx\n", left, right)
+    }
+
+    fn generate_subtraction(&mut self, left: &Box<parser::nodes::Expression>, right: &Box<parser::nodes::Expression>) -> String {
+        let left = self.generate_expression(left);
+        let right = self.generate_expression(right);
+
+        /*/
+         * {left}
+         * pushq %rax
+         * {right}
+         * popq %rcx
+         * subq %rcx, %rax
+         */
+
+        format!("{}\tpushq %rax\n{}popq %rcx\n\tsubq %rax, %rcx\n", left, right)
+    }
+
+    fn generate_multiplication(&mut self, left: &Box<parser::nodes::Expression>, right: &Box<parser::nodes::Expression>) -> String {
+        let left = self.generate_expression(left);
+        let right = self.generate_expression(right);
+
+        /*/
+         * {left}
+         * pushq %rax
+         * {right}
+         * popq %rcx
+         * imulq %rcx, %rax
+         */
+
+        format!("{}\tpushq %rax\n{}popq %rcx\n\timulq %rax, %rcx\n", left, right)
+    }
+
+    fn generate_division(&mut self, left: &Box<parser::nodes::Expression>, right: &Box<parser::nodes::Expression>) -> String {
+        let left = self.generate_expression(left);
+        let right = self.generate_expression(right);
+
+        /*/
+         * {left}
+         * pushq %rax
+         * {right}
+         * popq %rcx
+         * movq $0, %rdx
+         * idivq %rcx
+         */
+
+        format!("{}\tpushq %rax\n{}popq %rcx\n\tmovq $0, %rdx\n\tidivq %rcx\n", left, right)
+    }
+
+    fn generate_and(&mut self, left: &Box<parser::nodes::Expression>, right: &Box<parser::nodes::Expression>) -> String {
+        let left = self.generate_expression(left);
+        let right = self.generate_expression(right);
+
+        /*/
+         * {left}
+         * cmpq $0, %rax
+         * je .L{label_count}
+         * {right}
+         * cmpq $0, %rax
+         * je .L{label_count}
+         * movq $1, %rax
+         * jmp .L{label_count + 1}
+         * .L{label_count}:
+         * movq $0, %rax
+         * .L{label_count + 1}:
+         * // code continues from here
+         */
+
+        self.label_count += 2;
+
+        format!("{}\tcmpq $0, %rax\n\tje .L{}\n{}\tcmpq $0, %rax\n\tje .L{}\n\tmovq $1, %rax\n\tjmp .L{}\n.L{}:\n\tmovq $0, %rax\n.L{}:\n", left, self.label_count - 2, right, self.label_count - 1, self.label_count - 1, self.label_count - 2, self.label_count -1)
+    }
+
+    fn generate_or(&mut self, left: &Box<parser::nodes::Expression>, right: &Box<parser::nodes::Expression>) -> String {
+        let left = self.generate_expression(left);
+        let right = self.generate_expression(right);
+
+        /*/
+         * {left}
+         * cmpq $0, %rax
+         * jne .L{label_count}
+         * {right}
+         * cmpq $0, %rax
+         * jne .L{label_count}
+         * movq $0, %rax
+         * jmp .L{label_count + 1}
+         * .L{label_count}:
+         * movq $1, %rax
+         * .L{label_count + 1}:
+         * // code continues from here
+         */
+
+        self.label_count += 2;
+
+        format!("{}\tcmpq $0, %rax\n\tjne .L{}\n{}\tcmpq $0, %rax\n\tjne .L{}\n\tmovq $0, %rax\n\tjmp .L{}\n.L{}:\n\tmovq $1, %rax\n.L{}:\n", left, self.label_count - 2, right, self.label_count - 1, self.label_count - 1, self.label_count - 2, self.label_count -1)
+    }
+
+    fn generate_comparison(&mut self, set: &str, left: &Box<parser::nodes::Expression>, right: &Box<parser::nodes::Expression>) -> String {
+        let left = self.generate_expression(left);
+        let right = self.generate_expression(right);
+
+        /*/
+         * {left}
+         * pushq %rax
+         * {right}
+         * popq %rcx
+         * cmpq %rcx, %rax
+         * {set} %al
+         */
+
+        format!("{}\tpushq %rax\n{}popq %rcx\n\tcmpq %rcx, %rax\n\t{} %al\n", left, right, set)
+    }
+
+    fn generate_unary_op(&mut self, op: &parser::nodes::UnaryOp, expr: &Box<parser::nodes::Expression>) -> String {
         let expr = self.generate_expression(expr);
 
         match *op {

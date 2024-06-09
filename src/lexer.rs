@@ -17,7 +17,15 @@ pub enum TokenType {
     EOF,
     Error,
     BitwiseComplement,
-    LogicalNegation
+    LogicalNegation,
+    And,
+    Or,
+    Equal,
+    NotEqual,
+    LessThan,
+    LessThanEqual,
+    GreaterThan,
+    GreaterThanEqual,
 }
 
 #[derive(Debug, Clone)]
@@ -91,7 +99,57 @@ impl Lexer {
             },
             '!' => {
                 self.read_char();
-                Token { kind: TokenType::LogicalNegation, literal: "".to_string() }
+                if self.ch == '=' {
+                    self.read_char();
+                    Token { kind: TokenType::NotEqual, literal: "".to_string() }
+                } else {
+                    Token { kind: TokenType::LogicalNegation, literal: "".to_string() }
+                }
+            },
+            '&' => {
+                self.read_char();
+                if self.ch == '&' {
+                    self.read_char();
+                    Token { kind: TokenType::And, literal: "".to_string() }
+                } else {
+                    Token { kind: TokenType::Error, literal: format!("unexpected character: {}", self.ch) }
+                }
+            },
+            '|' => {
+                self.read_char();
+                if self.ch == '|' {
+                    self.read_char();
+                    Token { kind: TokenType::Or, literal: "".to_string() }
+                } else {
+                    Token { kind: TokenType::Error, literal: format!("unexpected character: {}", self.ch) }
+                }
+            },
+            '=' => {
+                self.read_char();
+                if self.ch == '=' {
+                    self.read_char();
+                    Token { kind: TokenType::Equal, literal: "".to_string() }
+                } else {
+                    Token { kind: TokenType::Error, literal: format!("unexpected character: {}", self.ch) }
+                }
+            },
+            '<' => {
+                self.read_char();
+                if self.ch == '=' {
+                    self.read_char();
+                    Token { kind: TokenType::LessThanEqual, literal: "".to_string() }
+                } else {
+                    Token { kind: TokenType::LessThan, literal: "".to_string() }
+                }
+            },
+            '>' => {
+                self.read_char();
+                if self.ch == '=' {
+                    self.read_char();
+                    Token { kind: TokenType::GreaterThanEqual, literal: "".to_string() }
+                } else {
+                    Token { kind: TokenType::GreaterThan, literal: "".to_string() }
+                }
             },
             '\0' => Token { kind: TokenType::EOF, literal: "".to_string() },
             _ => {
