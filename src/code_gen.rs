@@ -87,8 +87,8 @@ impl CodeGen {
         let expr = self.generate_expression(expr);
 
         match *op {
-            parser::nodes::UnaryOp::BitwiseComplement => format!("{}\tcmpq $0, %rax\n\tmovq $0, %eax\n\tsete %al\n", expr),
-            parser::nodes::UnaryOp::LogicalNegation => format!("{}\tnegq %rax\n", expr),
+            parser::nodes::UnaryOp::BitwiseComplement => format!("{}\tnegq %rax\n", expr),
+            parser::nodes::UnaryOp::LogicalNegation => format!("{}\tcmpq $0, %rax\n\tmovq $0, %rax\n\tsete %al\n", expr), // mov command is used as xor will set flags
         }
     }
 
