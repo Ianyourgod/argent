@@ -62,4 +62,5 @@ pub enum BinOp {
 pub enum UnaryOp {
     BitwiseComplement,
     LogicalNegation,
+    Negation,
 }

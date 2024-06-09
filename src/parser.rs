@@ -144,8 +144,8 @@ impl Parser {
             },
             lexer::TokenType::Subtract => {
                 self.next_token();
-                let right = self.parse_factor();
-                Box::new(nodes::Expression::BinOp(Box::new(nodes::Expression::Literal(nodes::Literal::Int(0))), nodes::BinOp::Subtract, right))
+                let expr = self.parse_factor();
+                Box::new(nodes::Expression::UnaryOp(nodes::UnaryOp::Negation, expr))
             },
             lexer::TokenType::LogicalNegation => {
                 self.next_token();

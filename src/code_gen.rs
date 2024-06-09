@@ -89,6 +89,7 @@ impl CodeGen {
         match *op {
             parser::nodes::UnaryOp::BitwiseComplement => format!("{}\tnegq %rax\n", expr),
             parser::nodes::UnaryOp::LogicalNegation => format!("{}\tcmpq $0, %rax\n\tmovq $0, %rax\n\tsete %al\n", expr), // mov command is used as xor will set flags
+            parser::nodes::UnaryOp::Negation => format!("{}\tnegq %rax\n", expr),
         }
     }
 
