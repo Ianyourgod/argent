@@ -1,3 +1,8 @@
 int main() {
-    return 0 ? 5 : 4;
+    int a = 0;
+    if (a) {
+        return 0;
+    } else {
+        return 1;
+    }
 }

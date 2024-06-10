@@ -89,7 +89,18 @@ impl Parser {
 
     fn parse_if_statement(&mut self) -> Box<nodes::Statement> {
         self.next_token();
+        if self.cur_token.kind != lexer::TokenType::LParen {
+            panic!("Expected LParen, found {:#?}", self.cur_token.kind);
+        }
+        self.next_token();
+
         let condition = self.parse_expression();
+
+        if self.cur_token.kind != lexer::TokenType::RParen {
+            panic!("Expected RParen, found {:#?}", self.cur_token.kind);
+        }
+        self.next_token();
+
         let consequence: nodes::StatementList;
         if self.cur_token.kind != lexer::TokenType::LBrace {
             let statement = self.parse_statement();
@@ -117,11 +128,11 @@ impl Parser {
 
     fn parse_function_declaration(&mut self, function_name: String) -> Box<nodes::Statement> {
         // TODO: parse function arguments
-        
         while self.cur_token.kind != lexer::TokenType::LBrace {
             self.next_token();
         }
         let body = self.parse_block_statement();
+
         Box::new(nodes::Statement::FunctionDeclaration(nodes::FunctionDeclaration {
             function_name,
             body,
@@ -315,6 +326,9 @@ impl Parser {
             lexer::TokenType::LParen => {
                 self.next_token();
                 let node = self.parse_expression();
+                if self.cur_token.kind != lexer::TokenType::RParen {
+                    panic!("Expected RParen, found {:#?}", self.cur_token.kind);
+                }
                 self.next_token();
                 node
             },
