@@ -151,7 +151,7 @@ impl Parser {
     }
 
     fn parse_expression(&mut self) -> Box<nodes::Expression> {
-        let mut node = self.parse_logical_or();
+        let mut node = self.parse_conditional();
         while   self.cur_token.kind == lexer::TokenType::Assign         ||
                 self.cur_token.kind == lexer::TokenType::AddAssign      ||
                 self.cur_token.kind == lexer::TokenType::SubtractAssign ||
@@ -177,6 +177,21 @@ impl Parser {
                 node = Box::new(nodes::Expression::BinOp(Box::new(nodes::Expression::Identifier(identifier.clone())), op, right));
                 node = Box::new(nodes::Expression::Assignment(identifier, node));
             }
+        }
+        node
+    }
+
+    fn parse_conditional(&mut self) -> Box<nodes::Expression> {
+        let mut node = self.parse_logical_or();
+        while self.cur_token.kind == lexer::TokenType::QuestionMark {
+            self.next_token();
+            let left = self.parse_expression();
+            if self.cur_token.kind != lexer::TokenType::Colon {
+                panic!("expected colon, found {:#?}", self.cur_token.kind);
+            }
+            self.next_token();
+            let right = self.parse_conditional();
+            node = Box::new(nodes::Expression::Conditional(node, left, right))
         }
         node
     }

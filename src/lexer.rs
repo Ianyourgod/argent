@@ -31,6 +31,8 @@ pub enum TokenType {
     SubtractAssign,
     MultiplyAssign,
     DivideAssign,
+    Colon,
+    QuestionMark,
 }
 
 #[derive(Debug, Clone)]
@@ -175,6 +177,14 @@ impl Lexer {
                 } else {
                     Token { kind: TokenType::GreaterThan, literal: "".to_string() }
                 }
+            },
+            ':' => {
+                self.read_char();
+                Token { kind: TokenType::Colon, literal: "".to_string() }
+            },
+            '?' => {
+                self.read_char();
+                Token { kind: TokenType::QuestionMark, literal: "".to_string() }
             },
             '\0' => Token { kind: TokenType::EOF, literal: "".to_string() },
             _ => {

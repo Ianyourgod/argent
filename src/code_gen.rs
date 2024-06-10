@@ -143,6 +143,7 @@ impl CodeGen {
             parser::nodes::Expression::UnaryOp(ref op, ref expr) => self.generate_unary_op(op, expr, var_map),
             parser::nodes::Expression::StatementList(ref stmt_list) => self.generate_statement_list(stmt_list, var_map),
             parser::nodes::Expression::Assignment(ref ident, ref expr) => self.generate_assignment(ident, expr, var_map),
+            parser::nodes::Expression::Conditional(ref flag, ref left, ref right) => self.generate_conditional(flag, left, right, var_map),
         }
     }
 
@@ -165,6 +166,33 @@ impl CodeGen {
         let index = var_map.hashmap[&ident.value];
 
         format!("{}\tmovq %rax, {}(%rbp)\n", expr, index)
+    }
+
+    fn generate_conditional(&mut self, flag: &parser::nodes::Expression, left: &parser::nodes::Expression, right: &parser::nodes::Expression, var_map: &mut VarMap) -> String {
+        /*/
+         * {condition}
+         * cmpq $0, %rax
+         * je .L{label_count}
+         * {consequence}
+         * jmp .L{label_count + 1}
+         * .L{label_count}:
+         * {alternative}
+         * .L{label_count + 1}:
+         */
+
+        let mut code = String::new();
+
+        let condition = self.generate_expression(flag, var_map);
+        let consequence = self.generate_expression(left, var_map);
+        
+        code.push_str(&format!("{}\tcmpq $0, %rax\n\tje .L{}\n{}", condition, self.label_count, consequence));
+
+        let label_count = self.label_count;
+        self.label_count += 2;
+        let alternative = self.generate_expression(right, var_map);
+        code.push_str(&format!("\tjmp .L{}\n.L{}:\n{}\n.L{}:\n", label_count + 1, label_count, alternative, label_count + 1));
+        
+        code
     }
 
     fn generate_identifier(&self, ident: &parser::nodes::Identifier, var_map: &mut VarMap) -> String {

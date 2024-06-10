@@ -52,6 +52,7 @@ pub enum Expression {
     UnaryOp(UnaryOp, Box<Expression>),
     StatementList(StatementList),
     Assignment(Identifier, Box<Expression>),
+    Conditional(Box<Expression>, Box<Expression>, Box<Expression>),
 }
 
 #[derive(Debug, Clone, Copy)]
