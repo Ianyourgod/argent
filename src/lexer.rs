@@ -26,6 +26,11 @@ pub enum TokenType {
     LessThanEqual,
     GreaterThan,
     GreaterThanEqual,
+    Assign,
+    AddAssign,
+    SubtractAssign,
+    MultiplyAssign,
+    DivideAssign,
 }
 
 #[derive(Debug, Clone)]
@@ -75,19 +80,39 @@ impl Lexer {
             },
             '+' => {
                 self.read_char();
-                Token { kind: TokenType::Add, literal: "".to_string() }
+                if self.ch == '=' {
+                    self.read_char();
+                    Token { kind: TokenType::AddAssign, literal: "".to_string() }
+                } else {
+                    Token { kind: TokenType::Add, literal: "".to_string() }
+                }
             },
             '-' => {
                 self.read_char();
-                Token { kind: TokenType::Subtract, literal: "".to_string() }
+                if self.ch == '=' {
+                    self.read_char();
+                    Token { kind: TokenType::SubtractAssign, literal: "".to_string() }
+                } else {
+                    Token { kind: TokenType::Subtract, literal: "".to_string() }
+                }
             },
             '*' => {
                 self.read_char();
-                Token { kind: TokenType::Multiply, literal: "".to_string() }
+                if self.ch == '=' {
+                    self.read_char();
+                    Token { kind: TokenType::MultiplyAssign, literal: "".to_string() }
+                } else {
+                    Token { kind: TokenType::Multiply, literal: "".to_string() }
+                }
             },
             '/' => {
                 self.read_char();
-                Token { kind: TokenType::Divide, literal: "".to_string() }
+                if self.ch == '=' {
+                    self.read_char();
+                    Token { kind: TokenType::DivideAssign, literal: "".to_string() }
+                } else {
+                    Token { kind: TokenType::Divide, literal: "".to_string() }
+                }
             },
             ';' => {
                 self.read_char();
@@ -130,7 +155,7 @@ impl Lexer {
                     self.read_char();
                     Token { kind: TokenType::Equal, literal: "".to_string() }
                 } else {
-                    Token { kind: TokenType::Error, literal: format!("unexpected character: {}", self.ch) }
+                    Token { kind: TokenType::Assign, literal: "".to_string() }
                 }
             },
             '<' => {

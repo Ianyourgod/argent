@@ -10,6 +10,7 @@ pub enum Statement {
     ReturnStatement(ReturnStatement),
     ExpressionStatement(ExpressionStatement),
     FunctionDeclaration(FunctionDeclaration),
+    VariableDeclaration(VariableDeclaration),
 }
 
 #[derive(Debug, Clone)]
@@ -29,12 +30,20 @@ pub struct FunctionDeclaration {
 }
 
 #[derive(Debug, Clone)]
+pub struct VariableDeclaration {
+    pub kind: String, // just int rn
+    pub ident: Identifier,
+    pub expr: Box<Expression>,
+}
+
+#[derive(Debug, Clone)]
 pub enum Expression {
     Literal(Literal),
     Identifier(Identifier),
     BinOp(Box<Expression>, BinOp, Box<Expression>),
     UnaryOp(UnaryOp, Box<Expression>),
     StatementList(StatementList),
+    Assignment(Identifier, Box<Expression>),
 }
 
 #[derive(Debug, Clone, Copy)]
