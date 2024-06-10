@@ -35,6 +35,9 @@ impl CodeGen {
             parser::nodes::Statement::ExpressionStatement(ref expr_stmt) => {
                 self.generate_expression_statement(expr_stmt, var_map)
             },
+            parser::nodes::Statement::IfStatement(ref if_stmt) => {
+                self.generate_if_statement(if_stmt, var_map)
+            },
             parser::nodes::Statement::FunctionDeclaration(ref func_decl) => {
                 self.generate_function_declaration(func_decl) // doesnt currently need var_map
             },
@@ -56,7 +59,38 @@ impl CodeGen {
     }
 
     fn generate_expression_statement(&mut self, stmt: &parser::nodes::ExpressionStatement, var_map: &mut VarMap) -> String {
-        format!("\t{}\n", self.generate_expression(&stmt.expression, var_map))
+        self.generate_expression(&stmt.expression, var_map)
+    }
+
+    fn generate_if_statement(&mut self, stmt: &parser::nodes::IfStatement, var_map: &mut VarMap) -> String {
+        /*/
+         * {condition}
+         * cmpq $0, %rax
+         * je .L{label_count}
+         * {consequence}
+         * jmp .L{label_count + 1}
+         * .L{label_count}:
+         * {alternative}
+         * .L{label_count + 1}:
+         */
+
+        let mut code = String::new();
+
+        let condition = self.generate_expression(&stmt.condition, var_map);
+        let consequence = self.generate_statement_list(&stmt.consequence, var_map);
+        
+        code.push_str(&format!("{}\tcmpq $0, %rax\n\tje .L{}\n{}", condition, self.label_count, consequence));
+
+        if stmt.alternative.is_some() {
+            let label_count = self.label_count;
+            self.label_count += 2;
+            let alternative = self.generate_statement_list(stmt.alternative.as_ref().unwrap(), var_map);
+            code.push_str(&format!("\tjmp .L{}\n.L{}:\n{}\n.L{}:\n", label_count + 1, label_count, alternative, label_count + 1));
+        } else {
+            code.push_str(&format!(".L{}:\n", self.label_count));
+            self.label_count += 1;
+        }
+        code
     }
 
     fn generate_function_declaration(&mut self, stmt: &parser::nodes::FunctionDeclaration) -> String {
@@ -282,15 +316,17 @@ impl CodeGen {
         let right = self.generate_expression(right, var_map);
 
         /*/
-         * {left}
-         * pushq %rax
          * {right}
+         * pushq %rax
+         * {left}
          * popq %rcx
          * cmpq %rcx, %rax
          * {set} %al
          */
 
-        format!("{}\tpushq %rax\n{}\tpopq %rcx\n\tcmpq %rcx, %rax\n\t{} %al\n", left, right, set)
+        // right and left are swapped because comparisons are done in reverse order and im lazy
+
+        format!("{}\tpushq %rax\n{}\tpopq %rcx\n\tcmpq %rcx, %rax\n\t{} %al\n", right, left, set)
     }
 
     fn generate_unary_op(&mut self, op: &parser::nodes::UnaryOp, expr: &Box<parser::nodes::Expression>, var_map: &mut VarMap) -> String {

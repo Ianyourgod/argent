@@ -9,6 +9,7 @@ pub struct StatementList {
 pub enum Statement {
     ReturnStatement(ReturnStatement),
     ExpressionStatement(ExpressionStatement),
+    IfStatement(IfStatement),
     FunctionDeclaration(FunctionDeclaration),
     VariableDeclaration(VariableDeclaration),
 }
@@ -21,6 +22,13 @@ pub struct ReturnStatement {
 #[derive(Debug, Clone)]
 pub struct ExpressionStatement {
     pub expression: Box<Expression>,
+}
+
+#[derive(Debug, Clone)]
+pub struct IfStatement {
+    pub condition: Box<Expression>,
+    pub consequence: StatementList,
+    pub alternative: Option<StatementList>,
 }
 
 #[derive(Debug, Clone)]

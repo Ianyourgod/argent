@@ -41,6 +41,7 @@ impl Parser {
                 match self.cur_token.literal.as_str() {
                     "return" => self.parse_return_statement(),
                     "int" => self.parse_declaration(),
+                    "if" => self.parse_if_statement(),
                     _ => self.parse_expression_statement(),
                 }
             },
@@ -84,6 +85,34 @@ impl Parser {
         } else {
             panic!("unexpected token: {:?}", self.cur_token);
         }
+    }
+
+    fn parse_if_statement(&mut self) -> Box<nodes::Statement> {
+        self.next_token();
+        let condition = self.parse_expression();
+        let consequence: nodes::StatementList;
+        if self.cur_token.kind != lexer::TokenType::LBrace {
+            let statement = self.parse_statement();
+            consequence = nodes::StatementList { statements: vec![statement] };
+        } else {
+            consequence = self.parse_block_statement();
+        }
+        self.next_token();
+        let alternative = if self.cur_token.kind == lexer::TokenType::Keyword && self.cur_token.literal == "else" {
+            self.next_token();
+            if self.cur_token.kind == lexer::TokenType::LBrace {
+                Some(self.parse_block_statement())
+            } else {
+                Some(nodes::StatementList { statements: vec![self.parse_statement()] })
+            }
+        } else {
+            None
+        };
+        Box::new(nodes::Statement::IfStatement(nodes::IfStatement {
+            condition,
+            consequence,
+            alternative,
+        }))
     }
 
     fn parse_function_declaration(&mut self, function_name: String) -> Box<nodes::Statement> {
