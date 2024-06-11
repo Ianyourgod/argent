@@ -39,12 +39,27 @@ pub enum TokenType {
 pub struct Token {
     pub kind: TokenType,
     pub literal: String,
+    pub line: usize,
+    pub pos: usize,
+    pub length: usize,
+}
+
+impl ToString for Token {
+    fn to_string(&self) -> String {
+        if self.literal != String::new() {
+            format!("{:#?}: {}", self.kind, self.literal)
+        } else {
+            format!("{:#?}", self.kind)
+        }
+    }
 }
 
 pub struct Lexer {
-    input: String,
+    pub input: String,
     position: usize,
     read_position: usize,
+    line: usize,
+    pos: usize,
     ch: char,
 }
 
@@ -55,145 +70,154 @@ impl Lexer {
             input,
             position: 0,
             read_position: 0,
+            line: 0,
+            pos: 0,
             ch: '\0',
         };
         l.read_char();
         l
     }
 
+    fn create_token(&mut self, kind: TokenType, literal: String, length: usize) -> Token {
+        Token { kind, literal, line: self.line, pos: (if self.pos < 2 {self.pos} else {self.pos-2}), length }
+    }
+
     pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
+        const BLANK: String = String::new();
         let tok = match self.ch {
             '(' => {
                 self.read_char();
-                Token { kind: TokenType::LParen, literal: "".to_string() }
+                self.create_token(TokenType::LParen, BLANK, 1)
             },
             ')' => {
                 self.read_char();
-                Token { kind: TokenType::RParen, literal: "".to_string() }
+                self.create_token(TokenType::RParen, BLANK, 1)
             },
             '{' => {
                 self.read_char();
-                Token { kind: TokenType::LBrace, literal: "".to_string() }
+                self.create_token(TokenType::LBrace, BLANK, 1)
             },
             '}' => {
                 self.read_char();
-                Token { kind: TokenType::RBrace, literal: "".to_string() }
+                self.create_token(TokenType::RBrace, BLANK, 1)
             },
             '+' => {
                 self.read_char();
                 if self.ch == '=' {
                     self.read_char();
-                    Token { kind: TokenType::AddAssign, literal: "".to_string() }
+                    self.create_token(TokenType::AddAssign, BLANK, 2)
                 } else {
-                    Token { kind: TokenType::Add, literal: "".to_string() }
+                    self.create_token(TokenType::Add, BLANK, 1)
                 }
             },
             '-' => {
                 self.read_char();
                 if self.ch == '=' {
                     self.read_char();
-                    Token { kind: TokenType::SubtractAssign, literal: "".to_string() }
+                    self.create_token(TokenType::SubtractAssign, BLANK, 2)
                 } else {
-                    Token { kind: TokenType::Subtract, literal: "".to_string() }
+                    self.create_token(TokenType::Subtract, BLANK, 1)
                 }
             },
             '*' => {
                 self.read_char();
                 if self.ch == '=' {
                     self.read_char();
-                    Token { kind: TokenType::MultiplyAssign, literal: "".to_string() }
+                    self.create_token(TokenType::MultiplyAssign, BLANK, 2)
                 } else {
-                    Token { kind: TokenType::Multiply, literal: "".to_string() }
+                    self.create_token(TokenType::Multiply, BLANK, 1)
                 }
             },
             '/' => {
                 self.read_char();
                 if self.ch == '=' {
                     self.read_char();
-                    Token { kind: TokenType::DivideAssign, literal: "".to_string() }
+                    self.create_token(TokenType::DivideAssign, BLANK, 2)
                 } else {
-                    Token { kind: TokenType::Divide, literal: "".to_string() }
+                    self.create_token(TokenType::Divide, BLANK, 1)
                 }
             },
             ';' => {
                 self.read_char();
-                Token { kind: TokenType::SemiColon, literal: "".to_string() }
+                self.create_token(TokenType::SemiColon, BLANK, 1)
             },
             '~' => {
                 self.read_char();
-                Token { kind: TokenType::BitwiseComplement, literal: "".to_string() }
+                self.create_token(TokenType::BitwiseComplement, BLANK, 1)
             },
             '!' => {
                 self.read_char();
                 if self.ch == '=' {
                     self.read_char();
-                    Token { kind: TokenType::NotEqual, literal: "".to_string() }
+                    self.create_token(TokenType::NotEqual, BLANK, 2)
                 } else {
-                    Token { kind: TokenType::LogicalNegation, literal: "".to_string() }
+                    self.create_token(TokenType::LogicalNegation, BLANK, 1)
                 }
             },
             '&' => {
                 self.read_char();
                 if self.ch == '&' {
                     self.read_char();
-                    Token { kind: TokenType::And, literal: "".to_string() }
+                    self.create_token(TokenType::And, BLANK, 2)
                 } else {
-                    Token { kind: TokenType::Error, literal: format!("unexpected character: {}", self.ch) }
+                    self.create_token(TokenType::Error, "unexpected character, expected &".to_string(), 1)
                 }
             },
             '|' => {
                 self.read_char();
                 if self.ch == '|' {
                     self.read_char();
-                    Token { kind: TokenType::Or, literal: "".to_string() }
+                    self.create_token(TokenType::Or, BLANK, 2)
                 } else {
-                    Token { kind: TokenType::Error, literal: format!("unexpected character: {}", self.ch) }
+                    self.create_token(TokenType::Error, "unexpected character, expected |".to_string(), 1)
                 }
             },
             '=' => {
                 self.read_char();
                 if self.ch == '=' {
                     self.read_char();
-                    Token { kind: TokenType::Equal, literal: "".to_string() }
+                    self.create_token(TokenType::Equal, BLANK, 2)
                 } else {
-                    Token { kind: TokenType::Assign, literal: "".to_string() }
+                    self.create_token(TokenType::Assign, BLANK, 1)
                 }
             },
             '<' => {
                 self.read_char();
                 if self.ch == '=' {
                     self.read_char();
-                    Token { kind: TokenType::LessThanEqual, literal: "".to_string() }
+                    self.create_token(TokenType::LessThanEqual, BLANK, 2)
                 } else {
-                    Token { kind: TokenType::LessThan, literal: "".to_string() }
+                    self.create_token(TokenType::LessThan, BLANK, 1)
                 }
             },
             '>' => {
                 self.read_char();
                 if self.ch == '=' {
                     self.read_char();
-                    Token { kind: TokenType::GreaterThanEqual, literal: "".to_string() }
+                    self.create_token(TokenType::GreaterThanEqual, BLANK, 2)
                 } else {
-                    Token { kind: TokenType::GreaterThan, literal: "".to_string() }
+                    self.create_token(TokenType::GreaterThan, BLANK, 1)
                 }
             },
             ':' => {
                 self.read_char();
-                Token { kind: TokenType::Colon, literal: "".to_string() }
+                self.create_token(TokenType::Colon, BLANK, 1)
             },
             '?' => {
                 self.read_char();
-                Token { kind: TokenType::QuestionMark, literal: "".to_string() }
+                self.create_token(TokenType::QuestionMark, BLANK, 1)
             },
-            '\0' => Token { kind: TokenType::EOF, literal: "".to_string() },
+            '\0' => self.create_token(TokenType::EOF, BLANK, 1),
             _ => {
                 if self.ch.is_alphabetic() || self.ch == '_' {
                     self.read_identifier()
                 } else if self.ch.is_numeric() {
-                    Token { kind: TokenType::Int, literal: self.read_number() }
+                    let numb = self.read_number();
+                    let numb_len = numb.len();
+                    self.create_token(TokenType::Int, numb, numb_len)
                 } else {
-                    Token { kind: TokenType::Error, literal: format!("unexpected character: {}", self.ch) }
+                    self.create_token(TokenType::Error, "unexpected character".to_string(), 1)
                 }
             }
         };
@@ -206,6 +230,14 @@ impl Lexer {
         } else {
             self.ch = self.input.chars().nth(self.read_position).unwrap();
         }
+
+        if self.ch == '\n' {
+            self.line += 1;
+            self.pos = 0;
+        } else {
+            self.pos += 1;
+        }
+
         self.position = self.read_position;
         self.read_position += 1;
     }
@@ -226,7 +258,9 @@ impl Lexer {
             TokenType::Identifier
         };
 
-        Token { kind, literal }
+        let literal_len = literal.len();
+
+        self.create_token(kind, literal, literal_len)
     }
 
     fn read_number(&mut self) -> String {

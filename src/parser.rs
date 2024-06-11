@@ -1,3 +1,5 @@
+use std::process::exit;
+
 use crate::lexer;
 pub mod nodes;
 
@@ -18,9 +20,42 @@ impl Parser {
         }
     }
 
+    fn error(&mut self, error_message: String, line: usize, position: usize, length: usize, error_code: Option<i32>) {
+        let lines = self.lexer.input.split('\n').collect::<Vec<&str>>();
+        let error_text = lines[line].trim_start();
+
+        let diff = lines[line].len() - error_text.len();
+
+        let mut arrows = String::new();
+        for _ in 0..(position - diff) {
+            arrows.push_str(" ");
+        }
+        for _ in position..(position+length) {
+            arrows.push_str("^")
+        }
+
+        let position = format!("--> {}:{}", line+1, position+1);
+        
+        println!("{}\n{}\n{}\n{}",
+            error_message,
+            position,
+            error_text,
+            arrows
+        );
+
+        let code = if error_code.is_some() {
+            error_code.unwrap()
+        } else { 1 };
+
+        exit(code)
+    }
+
     pub fn next_token(&mut self) {
         self.cur_token = self.peek_token.clone();
         self.peek_token = self.lexer.next_token();
+        if self.peek_token.kind == lexer::TokenType::Error {
+            self.error(self.peek_token.to_string(), self.peek_token.line, self.peek_token.pos, self.peek_token.length, Some(1));
+        }
     }
 
     pub fn parse_program(&mut self) -> nodes::StatementList {
@@ -54,7 +89,7 @@ impl Parser {
 
         let return_value = self.parse_expression();
         if self.cur_token.kind != lexer::TokenType::SemiColon {
-            panic!("expected semicolon, got {:?}", self.cur_token.kind);
+            self.error("unexpected character, expected semicolon".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
         }
 
         Box::new(nodes::Statement::ReturnStatement(nodes::ReturnStatement {
@@ -83,6 +118,7 @@ impl Parser {
         } else if self.cur_token.kind == lexer::TokenType::LParen {
             self.parse_function_declaration(ident)
         } else {
+            self.error("unexpected token".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
             panic!("unexpected token: {:?}", self.cur_token);
         }
     }
@@ -337,7 +373,7 @@ impl Parser {
                 let node = self.parse_block_statement();
                 self.next_token();
                 Box::new(nodes::Expression::StatementList(node))
-            }
+            },
             _ => panic!("unexpected token: {:?}", self.cur_token),
         }
     }
