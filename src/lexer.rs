@@ -188,7 +188,7 @@ impl Lexer {
             },
             '\0' => Token { kind: TokenType::EOF, literal: "".to_string() },
             _ => {
-                if self.ch.is_alphabetic() {
+                if self.ch.is_alphabetic() || self.ch == '_' {
                     self.read_identifier()
                 } else if self.ch.is_numeric() {
                     Token { kind: TokenType::Int, literal: self.read_number() }
@@ -212,7 +212,7 @@ impl Lexer {
 
     fn read_identifier(&mut self) -> Token {
         let position = self.position;
-        while self.ch.is_alphabetic() {
+        while self.ch.is_alphabetic() || self.ch == '_' {
             self.read_char();
         }
 
