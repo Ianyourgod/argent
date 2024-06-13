@@ -119,21 +119,23 @@ impl Parser {
             self.parse_function_declaration(ident)
         } else {
             self.error("unexpected token".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
-            panic!("unexpected token: {:?}", self.cur_token);
+            panic!(); // so it shuts up about "erm yourf not returning the right type!!!"
         }
     }
 
     fn parse_if_statement(&mut self) -> Box<nodes::Statement> {
         self.next_token();
         if self.cur_token.kind != lexer::TokenType::LParen {
-            panic!("Expected LParen, found {:#?}", self.cur_token.kind);
+            self.error("unexpected token, expected LParen".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+            panic!();
         }
         self.next_token();
 
         let condition = self.parse_expression();
 
         if self.cur_token.kind != lexer::TokenType::RParen {
-            panic!("Expected RParen, found {:#?}", self.cur_token.kind);
+            self.error("unexpected token, expected RParen".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+            panic!();
         }
         self.next_token();
 
