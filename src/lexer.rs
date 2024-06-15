@@ -39,7 +39,7 @@ pub enum TokenType {
 pub struct Token {
     pub kind: TokenType,
     pub literal: String,
-    pub line: usize,
+    pub line: usize, //technically not needed but its easier to do this shit in the lexer
     pub pos: usize,
     pub length: usize,
 }
