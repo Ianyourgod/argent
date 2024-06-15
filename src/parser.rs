@@ -27,7 +27,7 @@ impl Parser {
         let diff = lines[line].len() - error_text.len();
 
         let mut arrows = String::new();
-        for _ in 0..(position - diff) {
+        for _ in 0..(position - diff - length + 1) {
             arrows.push_str(" ");
         }
         for _ in position..(position+length) {
@@ -58,15 +58,13 @@ impl Parser {
         }
     }
 
-    pub fn parse_program(&mut self) -> nodes::StatementList {
-        let mut program = nodes::StatementList { statements: vec![] };
-
+    pub fn parse_program(&mut self) -> nodes::CompoundStatement {
+        let mut program = nodes::CompoundStatement { statements: vec![] };
         while self.cur_token.kind != lexer::TokenType::EOF {
             let stmt = self.parse_statement();
             program.statements.push(stmt);
             self.next_token();
         }
-
         program
     }
 
@@ -80,13 +78,15 @@ impl Parser {
                     _ => self.parse_expression_statement(),
                 }
             },
+            lexer::TokenType::LBrace => {
+                self.parse_block_statement()
+            }
             _ => self.parse_expression_statement(),
         }
     }
 
     fn parse_return_statement(&mut self) -> Box<nodes::Statement> {
         self.next_token();
-
         let return_value = self.parse_expression();
         if self.cur_token.kind != lexer::TokenType::SemiColon {
             self.error("unexpected character, expected semicolon".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
@@ -99,6 +99,9 @@ impl Parser {
 
     fn parse_declaration(&mut self) -> Box<nodes::Statement> {
         self.next_token();
+        if self.cur_token.kind != lexer::TokenType::Identifier {
+            self.error("unexpected token".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+        }
         let ident = self.cur_token.literal.clone();
         self.next_token();
         if self.cur_token.kind == lexer::TokenType::Assign {
@@ -118,7 +121,7 @@ impl Parser {
         } else if self.cur_token.kind == lexer::TokenType::LParen {
             self.parse_function_declaration(ident)
         } else {
-            self.error("unexpected token".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+            self.error(format!("Expected '=', ';', or '{{', found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
             panic!(); // so it shuts up about "erm yourf not returning the right type!!!"
         }
     }
@@ -126,7 +129,7 @@ impl Parser {
     fn parse_if_statement(&mut self) -> Box<nodes::Statement> {
         self.next_token();
         if self.cur_token.kind != lexer::TokenType::LParen {
-            self.error("unexpected token, expected LParen".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+            self.error(format!("Expected LParen, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
             panic!();
         }
         self.next_token();
@@ -134,26 +137,16 @@ impl Parser {
         let condition = self.parse_expression();
 
         if self.cur_token.kind != lexer::TokenType::RParen {
-            self.error("unexpected token, expected RParen".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+            self.error(format!("Expected RParen, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
             panic!();
         }
         self.next_token();
 
-        let consequence: nodes::StatementList;
-        if self.cur_token.kind != lexer::TokenType::LBrace {
-            let statement = self.parse_statement();
-            consequence = nodes::StatementList { statements: vec![statement] };
-        } else {
-            consequence = self.parse_block_statement();
-        }
+        let consequence = self.parse_statement();
         self.next_token();
         let alternative = if self.cur_token.kind == lexer::TokenType::Keyword && self.cur_token.literal == "else" {
             self.next_token();
-            if self.cur_token.kind == lexer::TokenType::LBrace {
-                Some(self.parse_block_statement())
-            } else {
-                Some(nodes::StatementList { statements: vec![self.parse_statement()] })
-            }
+            Some(self.parse_statement())
         } else {
             None
         };
@@ -166,10 +159,22 @@ impl Parser {
 
     fn parse_function_declaration(&mut self, function_name: String) -> Box<nodes::Statement> {
         // TODO: parse function arguments
-        while self.cur_token.kind != lexer::TokenType::LBrace {
-            self.next_token();
+        if self.cur_token.kind != lexer::TokenType::LParen {
+            self.error(format!("expected LParen, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
         }
-        let body = self.parse_block_statement();
+        while self.cur_token.kind != lexer::TokenType::RParen {
+            self.next_token();
+            if self.cur_token.kind == lexer::TokenType::EOF {
+                self.error(format!("Expected RParen, found EOF"), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+            }
+        }
+        self.next_token();
+
+        if self.cur_token.kind != lexer::TokenType::LBrace {
+            self.error(format!("expected LBrace, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+        }
+
+        let body = self.parse_statement();
 
         Box::new(nodes::Statement::FunctionDeclaration(nodes::FunctionDeclaration {
             function_name,
@@ -177,15 +182,15 @@ impl Parser {
         }))
     }
 
-    fn parse_block_statement(&mut self) -> nodes::StatementList {
-        let mut block = nodes::StatementList { statements: vec![] };
+    fn parse_block_statement(&mut self) -> Box<nodes::Statement> {
+        let mut block = nodes::CompoundStatement { statements: vec![] };
         self.next_token();
         while self.cur_token.kind != lexer::TokenType::RBrace {
             let stmt = self.parse_statement();
             block.statements.push(stmt);
             self.next_token();
         }
-        block
+        Box::new(nodes::Statement::Compound(block))
     }
 
     fn parse_expression_statement(&mut self) -> Box<nodes::Statement> {
@@ -221,7 +226,10 @@ impl Parser {
                     lexer::TokenType::SubtractAssign => nodes::BinOp::Subtract,
                     lexer::TokenType::MultiplyAssign => nodes::BinOp::Multiply,
                     lexer::TokenType::DivideAssign => nodes::BinOp::Divide,
-                    _ => panic!("unexpected token: {:?}", kind),
+                    _ => {
+                        self.error(format!("Expected BinOp, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+                        panic!();
+                    },
                 };
                 node = Box::new(nodes::Expression::BinOp(Box::new(nodes::Expression::Identifier(identifier.clone())), op, right));
                 node = Box::new(nodes::Expression::Assignment(identifier, node));
@@ -369,12 +377,6 @@ impl Parser {
                 }
                 self.next_token();
                 node
-            },
-            lexer::TokenType::LBrace => {
-                self.next_token();
-                let node = self.parse_block_statement();
-                self.next_token();
-                Box::new(nodes::Expression::StatementList(node))
             },
             _ => panic!("unexpected token: {:?}", self.cur_token),
         }

@@ -14,11 +14,11 @@ fn main() {
         std::io::stdin().read_line(&mut input).unwrap();
     }
 
-    let l = lexer::Lexer::new(input);
+    let l = lexer::Lexer::new(input.clone());
     let mut p = parser::Parser::new(l);
     let program = p.parse_program();
 
-    let mut compiler = code_gen::CodeGen::new(program);
+    let mut compiler = code_gen::CodeGen::new(program, Some(input));
 
     // write to file
     std::fs::write("output/temp.s", compiler.generate_code()).unwrap();

@@ -1,17 +1,13 @@
 #![allow(dead_code)]
 
 #[derive(Debug, Clone)]
-pub struct StatementList {
-    pub statements: Vec<Box<Statement>>,
-}
-
-#[derive(Debug, Clone)]
 pub enum Statement {
     ReturnStatement(ReturnStatement),
     ExpressionStatement(ExpressionStatement),
     IfStatement(IfStatement),
     FunctionDeclaration(FunctionDeclaration),
     VariableDeclaration(VariableDeclaration),
+    Compound(CompoundStatement),
 }
 
 #[derive(Debug, Clone)]
@@ -27,14 +23,14 @@ pub struct ExpressionStatement {
 #[derive(Debug, Clone)]
 pub struct IfStatement {
     pub condition: Box<Expression>,
-    pub consequence: StatementList,
-    pub alternative: Option<StatementList>,
+    pub consequence: Box<Statement>,
+    pub alternative: Option<Box<Statement>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct FunctionDeclaration {
     pub function_name: String,
-    pub body: StatementList,
+    pub body: Box<Statement>,
 }
 
 #[derive(Debug, Clone)]
@@ -45,12 +41,16 @@ pub struct VariableDeclaration {
 }
 
 #[derive(Debug, Clone)]
+pub struct CompoundStatement {
+    pub statements: Vec<Box<Statement>>,
+}
+
+#[derive(Debug, Clone)]
 pub enum Expression {
     Literal(Literal),
     Identifier(Identifier),
     BinOp(Box<Expression>, BinOp, Box<Expression>),
     UnaryOp(UnaryOp, Box<Expression>),
-    StatementList(StatementList),
     Assignment(Identifier, Box<Expression>),
     Conditional(Box<Expression>, Box<Expression>, Box<Expression>),
 }

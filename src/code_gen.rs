@@ -1,19 +1,29 @@
 use std::collections::HashMap;
+
 use crate::parser;
 
 pub struct CodeGen {
-    pub program: parser::nodes::StatementList,
+    pub program: parser::nodes::CompoundStatement,
     label_count: i32,
+    source: String
 }
 
+#[derive(Clone)]
 struct VarMap {
     hashmap: HashMap<String, i32>,
     stack_index: i32,
 }
 
 impl CodeGen {
-    pub fn new(program: parser::nodes::StatementList) -> CodeGen {
-        CodeGen { program, label_count: 0 }
+    pub fn new(program: parser::nodes::CompoundStatement, source: Option<String>) -> CodeGen {
+        let src: String;
+        if source.is_some() {
+            src = source.unwrap();
+        } else {
+            src = String::new();
+        }
+        
+        CodeGen { program, label_count: 0, source: src }
     }
 
     pub fn generate_code(&mut self) -> String {
@@ -25,6 +35,36 @@ impl CodeGen {
         }
 
         code
+    }
+
+    fn error(&mut self, error_message: String, line: usize, position: usize, length: usize, error_code: Option<i32>) {
+        let lines = self.source.split('\n').collect::<Vec<&str>>();
+        let error_text = lines[line].trim_start();
+
+        let diff = lines[line].len() - error_text.len();
+
+        let mut arrows = String::new();
+        for _ in 0..(position - diff - length + 1) {
+            arrows.push_str(" ");
+        }
+        for _ in position..(position+length) {
+            arrows.push_str("^")
+        }
+
+        let position = format!("--> {}:{}", line+1, position+1);
+        
+        println!("{}\n{}\n{}\n{}",
+            error_message,
+            position,
+            error_text,
+            arrows
+        );
+
+        let code = if error_code.is_some() {
+            error_code.unwrap()
+        } else { 1 };
+
+        std::process::exit(code)
     }
 
     fn generate_statement(&mut self, stmt: &Box<parser::nodes::Statement>, var_map: &mut VarMap) -> String {
@@ -43,6 +83,9 @@ impl CodeGen {
             },
             parser::nodes::Statement::VariableDeclaration(ref var_decl) => {
                 self.generate_variable_declaration(var_decl, var_map)
+            },
+            parser::nodes::Statement::Compound(ref block_stmt) => {
+                self.generate_block_statement(block_stmt, var_map)
             }
         }
     }
@@ -77,14 +120,14 @@ impl CodeGen {
         let mut code = String::new();
 
         let condition = self.generate_expression(&stmt.condition, var_map);
-        let consequence = self.generate_statement_list(&stmt.consequence, var_map);
+        let consequence = self.generate_statement(&stmt.consequence, var_map);
         
         code.push_str(&format!("{}\tcmpq $0, %rax\n\tje .L{}\n{}", condition, self.label_count, consequence));
 
         if stmt.alternative.is_some() {
             let label_count = self.label_count;
             self.label_count += 2;
-            let alternative = self.generate_statement_list(stmt.alternative.as_ref().unwrap(), var_map);
+            let alternative = self.generate_statement(stmt.alternative.as_ref().unwrap(), var_map);
             code.push_str(&format!("\tjmp .L{}\n.L{}:\n{}\n.L{}:\n", label_count + 1, label_count, alternative, label_count + 1));
         } else {
             code.push_str(&format!(".L{}:\n", self.label_count));
@@ -109,9 +152,7 @@ impl CodeGen {
         let mut code = format!("{}:\n\tpush %rbp\n\tmov %rsp, %rbp\n", stmt.function_name);
         let mut var_map = VarMap { hashmap: HashMap::new(), stack_index: -8 };
 
-        for stmt in &stmt.body.statements {
-            code.push_str(&self.generate_statement(stmt, &mut var_map));
-        }
+        code.push_str(&self.generate_statement(&stmt.body, &mut var_map));
 
         code.push_str("\tmovq %rbp, %rsp\n\tpop %rbp\n\tmovq $0, %rax\n\tret\n");
 
@@ -123,6 +164,7 @@ impl CodeGen {
             panic!("variable {} already declared", stmt.ident.value);
         }
 
+        // TODO: allow variables defined in higher up scopes to be redeclared
         var_map.hashmap.insert(stmt.ident.value.clone(), var_map.stack_index);
 
         var_map.stack_index -= 8;
@@ -141,17 +183,29 @@ impl CodeGen {
             parser::nodes::Expression::Identifier(ref ident) => self.generate_identifier(ident, var_map),
             parser::nodes::Expression::BinOp(ref left, ref op, ref right) => self.generate_bin_op(op, left, right, var_map),
             parser::nodes::Expression::UnaryOp(ref op, ref expr) => self.generate_unary_op(op, expr, var_map),
-            parser::nodes::Expression::StatementList(ref stmt_list) => self.generate_statement_list(stmt_list, var_map),
             parser::nodes::Expression::Assignment(ref ident, ref expr) => self.generate_assignment(ident, expr, var_map),
             parser::nodes::Expression::Conditional(ref flag, ref left, ref right) => self.generate_conditional(flag, left, right, var_map),
         }
     }
 
-    fn generate_statement_list(&mut self, stmt_list: &parser::nodes::StatementList, var_map: &mut VarMap) -> String {
-        let mut code = String::new();
+    fn generate_block_statement(&mut self, stmt_list: &parser::nodes::CompoundStatement, var_map: &VarMap) -> String {
+        let mut code = "\tpush %rbp\n\tmov %rsp, %rbp\n".to_string();
+
+        /*/
+         * push %rbp // save old base pointer
+         * mov %rsp, %rbp // set new base pointer
+         * {code}
+         * movq %rbp, %rsp // restore old stack pointer
+         * pop %rbp // restore old base pointer
+         */
+
+        let mut new_var_map = (*var_map).clone();
         for stmt in &stmt_list.statements {
-            code.push_str(&self.generate_statement(stmt, var_map));
+            code.push_str(&self.generate_statement(stmt, &mut new_var_map));
         }
+
+        code.push_str("\tmovq %rbp, %rsp\n\tpop %rbp\n");
+    
         code
     }
 
