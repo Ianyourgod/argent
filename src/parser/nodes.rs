@@ -95,3 +95,5 @@ pub enum UnaryOp {
     LogicalNegation,
     Negation,
 }
+
+// TODO: improve line stuff for errors

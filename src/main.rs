@@ -2,16 +2,35 @@ mod parser;
 mod lexer;
 mod code_gen;
 
+fn help() {
+    println!("Usage: ./main run [filename]");
+    std::process::exit(0);
+}
+
 fn main() {
-    let mut outfile_name = "output/output".to_string();
-    let mut input = String::new();
+    let outfile_name: String;
+    let input: String;
     // check if there is a file to read from in cmd args
+
     if std::env::args().len() > 1 {
-        let filename = std::env::args().nth(1).unwrap();
-        outfile_name = "output/".to_string() + &filename.split('.').collect::<Vec<&str>>()[0].to_string();
-        input = std::fs::read_to_string(filename).unwrap();
+        match std::env::args().nth(1).unwrap().as_str() {
+            "help" => {
+                help();
+                panic!();
+            },
+            "run" => {
+                let filename = std::env::args().nth(2).unwrap();
+                outfile_name = "output/".to_string() + &filename.split('.').collect::<Vec<&str>>()[0].to_string();
+                input = std::fs::read_to_string(filename).unwrap();
+            },
+            _ => {
+                help();
+                panic!();
+            }
+        }
     } else {
-        std::io::stdin().read_line(&mut input).unwrap();
+        help();
+        panic!();
     }
 
     let l = lexer::Lexer::new(input.clone());
