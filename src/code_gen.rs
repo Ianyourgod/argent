@@ -11,9 +11,24 @@ pub struct CodeGen {
 }
 
 #[derive(Clone)]
+struct Context {
+    var_map: VarMap,
+}
+
 struct VarMap {
     hashmap: HashMap<String, i32>,
     stack_index: i32,
+}
+
+impl Clone for VarMap {
+    fn clone(&self) -> VarMap {
+        let mut new_hashmap = HashMap::new();
+        for (key, value) in self.hashmap.iter() {
+            new_hashmap.insert(key.clone(), *value - self.stack_index);
+        }
+
+        VarMap { hashmap: new_hashmap, stack_index: self.stack_index }
+    }
 }
 
 impl CodeGen {
@@ -71,24 +86,13 @@ impl CodeGen {
 
     fn generate_statement(&mut self, stmt: &Box<parser::nodes::Statement>, var_map: &mut VarMap) -> String {
         match **stmt {
-            parser::nodes::Statement::ReturnStatement(ref return_stmt) => {
-                self.generate_return_statement(return_stmt, var_map)
-            },
-            parser::nodes::Statement::ExpressionStatement(ref expr_stmt) => {
-                self.generate_expression_statement(expr_stmt, var_map)
-            },
-            parser::nodes::Statement::IfStatement(ref if_stmt) => {
-                self.generate_if_statement(if_stmt, var_map)
-            },
-            parser::nodes::Statement::FunctionDeclaration(ref func_decl) => {
-                self.generate_function_declaration(func_decl) // doesnt currently need var_map
-            },
-            parser::nodes::Statement::VariableDeclaration(ref var_decl) => {
-                self.generate_variable_declaration(var_decl, var_map)
-            },
-            parser::nodes::Statement::Compound(ref block_stmt) => {
-                self.generate_block_statement(block_stmt, var_map)
-            }
+            parser::nodes::Statement::ReturnStatement(ref return_stmt) => self.generate_return_statement(return_stmt, var_map),
+            parser::nodes::Statement::ExpressionStatement(ref expr_stmt) => self.generate_expression_statement(expr_stmt, var_map),
+            parser::nodes::Statement::IfStatement(ref if_stmt) => self.generate_if_statement(if_stmt, var_map),
+            parser::nodes::Statement::WhileStatement(ref while_stmt) => self.generate_while_statement(while_stmt, var_map),
+            parser::nodes::Statement::FunctionDeclaration(ref func_decl) =>self.generate_function_declaration(func_decl), // doesnt currently need var_map
+            parser::nodes::Statement::VariableDeclaration(ref var_decl) => self.generate_variable_declaration(var_decl, var_map),
+            parser::nodes::Statement::Compound(ref block_stmt) => self.generate_block_statement(block_stmt, var_map)
         }
     }
 
@@ -138,25 +142,44 @@ impl CodeGen {
         code
     }
 
+    fn generate_while_statement(&mut self, stmt: &parser::nodes::WhileStatement, var_map: &mut VarMap) -> String {
+        /*/
+         * .L{label_count}:
+         * {condition}
+         * cmpq $0, %rax
+         * je .L{label_count + 1}
+         * {body}
+         * jmp .L{label_count}
+         * .L{label_count + 1}:
+         */
+
+        let mut code = format!(".L{}:\n", self.label_count);
+        let label_count = self.label_count;
+        self.label_count += 2;
+
+        let condition = self.generate_expression(&stmt.condition, var_map);
+        let body = self.generate_statement(&stmt.body, var_map);
+
+        code.push_str(&format!("{}\tcmpq $0, %rax\n\tje .L{}\n{}\tjmp .L{}\n.L{}:\n", condition, label_count + 1, body, label_count, label_count + 1));
+
+        code
+    }
+
     fn generate_function_declaration(&mut self, stmt: &parser::nodes::FunctionDeclaration) -> String {
         /*/
          * {function_name}:
-         * push %rbp // save old base pointer
-         * mov %rsp, %rbp // set new base pointer
          * {body}
-         * movq %rbp, %rsp // restore old stack pointer
-         * pop %rbp // restore old base pointer
          * movq $0, %rax // return 0
          * ret
          */
 
         
-        let mut code = format!("{}:\n\tpush %rbp\n\tmov %rsp, %rbp\n", stmt.function_name);
+        let mut code = format!("{}:\n", stmt.function_name);
         let mut var_map = VarMap { hashmap: HashMap::new(), stack_index: -8 };
 
         code.push_str(&self.generate_statement(&stmt.body, &mut var_map));
 
-        code.push_str("\tmovq %rbp, %rsp\n\tpop %rbp\n\tmovq $0, %rax\n\tret\n");
+        code.push_str("\tmovq $0, %rax\n\tret\n");
 
         code
     }
@@ -194,11 +217,12 @@ impl CodeGen {
         let mut code = "\tpush %rbp\n\tmov %rsp, %rbp\n".to_string();
 
         /*/
-         * push %rbp // save old base pointer
-         * mov %rsp, %rbp // set new base pointer
+         * push %rbp ; save old base pointer
+         * mov %rsp, %rbp ; set new base pointer
          * {code}
-         * movq %rbp, %rsp // restore old stack pointer
-         * pop %rbp // restore old base pointer
+         * movq %rbp, %rsp ; restore old stack pointer
+         * pop %rbp ; restore old base pointer
+         * subq {size_of_vars}, %rsp ; remove variables from stack
          */
 
         let mut new_var_map = (*var_map).clone();
@@ -206,7 +230,7 @@ impl CodeGen {
             code.push_str(&self.generate_statement(stmt, &mut new_var_map));
         }
 
-        code.push_str("\tmovq %rbp, %rsp\n\tpop %rbp\n");
+        code.push_str(&format!("\tmovq %rbp, %rsp\n\tpop %rbp\n\tsubq ${}, %rsp\n", new_var_map.stack_index + 8));
     
         code
     }

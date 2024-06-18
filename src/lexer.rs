@@ -248,7 +248,7 @@ impl Lexer {
             self.read_char();
         }
 
-        let keywords = vec!["int", "return", "if", "else"];
+        let keywords = vec!["int", "return", "if", "else", "while"];
 
         let literal = self.input[position..self.position].to_string();
 

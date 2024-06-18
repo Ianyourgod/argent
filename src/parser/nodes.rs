@@ -5,6 +5,7 @@ pub enum Statement {
     ReturnStatement(ReturnStatement),
     ExpressionStatement(ExpressionStatement),
     IfStatement(IfStatement),
+    WhileStatement(WhileStatement),
     FunctionDeclaration(FunctionDeclaration),
     VariableDeclaration(VariableDeclaration),
     Compound(CompoundStatement),
@@ -25,6 +26,12 @@ pub struct IfStatement {
     pub condition: Box<Expression>,
     pub consequence: Box<Statement>,
     pub alternative: Option<Box<Statement>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct WhileStatement {
+    pub condition: Box<Expression>,
+    pub body: Box<Statement>,
 }
 
 #[derive(Debug, Clone)]

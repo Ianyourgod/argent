@@ -50,7 +50,7 @@ impl Parser {
         exit(code)
     }
 
-    pub fn next_token(&mut self) {
+    fn next_token(&mut self) {
         self.cur_token = self.peek_token.clone();
         self.peek_token = self.lexer.next_token();
         if self.peek_token.kind == lexer::TokenType::Error {
@@ -75,6 +75,7 @@ impl Parser {
                     "return" => self.parse_return_statement(),
                     "int" => self.parse_declaration(),
                     "if" => self.parse_if_statement(),
+                    "while" => self.parse_while_statement(),
                     _ => self.parse_expression_statement(),
                 }
             },
@@ -128,20 +129,10 @@ impl Parser {
 
     fn parse_if_statement(&mut self) -> Box<nodes::Statement> {
         self.next_token();
-        if self.cur_token.kind != lexer::TokenType::LParen {
-            self.error(format!("Expected LParen, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
-            panic!();
-        }
-        self.next_token();
 
         let condition = self.parse_expression();
 
-        if self.cur_token.kind != lexer::TokenType::RParen {
-            self.error(format!("Expected RParen, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
-            panic!();
-        }
-        self.next_token();
-
+        // todo: require braces
         let consequence = self.parse_statement();
         self.next_token();
         let alternative = if self.cur_token.kind == lexer::TokenType::Keyword && self.cur_token.literal == "else" {
@@ -154,6 +145,20 @@ impl Parser {
             condition,
             consequence,
             alternative,
+        }))
+    }
+
+    fn parse_while_statement(&mut self) -> Box<nodes::Statement> {
+        self.next_token();
+
+        let condition = self.parse_expression();
+
+        // todo: require braces
+        let body = self.parse_statement();
+
+        Box::new(nodes::Statement::WhileStatement(nodes::WhileStatement {
+            condition,
+            body,
         }))
     }
 
@@ -185,10 +190,13 @@ impl Parser {
     fn parse_block_statement(&mut self) -> Box<nodes::Statement> {
         let mut block = nodes::CompoundStatement { statements: vec![] };
         self.next_token();
-        while self.cur_token.kind != lexer::TokenType::RBrace {
+        while self.cur_token.kind != lexer::TokenType::RBrace  {
             let stmt = self.parse_statement();
             block.statements.push(stmt);
             self.next_token();
+            if self.cur_token.kind == lexer::TokenType::EOF {
+                self.error(format!("Expected RBrace, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+            }
         }
         Box::new(nodes::Statement::Compound(block))
     }
