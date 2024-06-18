@@ -2,9 +2,9 @@ mod parser;
 mod lexer;
 mod code_gen;
 
-fn help() {
+fn help(err_code: i32) {
     println!("Usage: ./main run [filename]");
-    std::process::exit(0);
+    std::process::exit(err_code);
 }
 
 fn main() {
@@ -15,7 +15,7 @@ fn main() {
     if std::env::args().len() > 1 {
         match std::env::args().nth(1).unwrap().as_str() {
             "help" => {
-                help();
+                help(0);
                 panic!();
             },
             "run" => {
@@ -24,12 +24,12 @@ fn main() {
                 input = std::fs::read_to_string(filename).unwrap();
             },
             _ => {
-                help();
+                help(2);
                 panic!();
             }
         }
     } else {
-        help();
+        help(2);
         panic!();
     }
 
