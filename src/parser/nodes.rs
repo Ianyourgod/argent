@@ -6,9 +6,12 @@ pub enum Statement {
     ExpressionStatement(ExpressionStatement),
     IfStatement(IfStatement),
     WhileStatement(WhileStatement),
+    BreakStatement,
+    ContinueStatement,
     FunctionDeclaration(FunctionDeclaration),
     VariableDeclaration(VariableDeclaration),
     Compound(CompoundStatement),
+    Empty,
 }
 
 #[derive(Debug, Clone)]

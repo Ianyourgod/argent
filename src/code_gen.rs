@@ -13,21 +13,26 @@ pub struct CodeGen {
 #[derive(Clone)]
 struct Context {
     var_map: VarMap,
+    current_scope: VarMap,
+    loop_start: Option<usize>,
+    loop_end: Option<usize>,
 }
 
+impl Context {
+    fn new() -> Context {
+        Context { var_map: VarMap::new(), loop_start: None, loop_end: None, current_scope: VarMap::new() }
+    }
+}
+
+#[derive(Clone)]
 struct VarMap {
     hashmap: HashMap<String, i32>,
     stack_index: i32,
 }
 
-impl Clone for VarMap {
-    fn clone(&self) -> VarMap {
-        let mut new_hashmap = HashMap::new();
-        for (key, value) in self.hashmap.iter() {
-            new_hashmap.insert(key.clone(), *value - self.stack_index);
-        }
-
-        VarMap { hashmap: new_hashmap, stack_index: self.stack_index }
+impl VarMap {
+    fn new() -> VarMap {
+        VarMap { hashmap: HashMap::new(), stack_index: -8 }
     }
 }
 
@@ -45,10 +50,10 @@ impl CodeGen {
 
     pub fn generate_code(&mut self) -> String {
         let mut code = ".globl main\n".to_string();
-        let mut var_map = VarMap { hashmap: HashMap::new(), stack_index: -8, };
+        let mut context = Context::new();
 
         for stmt in self.program.statements.clone() { // clone to avoid borrowing issues
-            code.push_str(&(self.generate_statement(&stmt, &mut var_map)));
+            code.push_str(&(self.generate_statement(&stmt, &mut context)));
         }
 
         code
@@ -84,34 +89,47 @@ impl CodeGen {
         std::process::exit(code)
     }
 
-    fn generate_statement(&mut self, stmt: &Box<parser::nodes::Statement>, var_map: &mut VarMap) -> String {
+    fn generate_statement(&mut self, stmt: &Box<parser::nodes::Statement>, context: &mut Context) -> String {
         match **stmt {
-            parser::nodes::Statement::ReturnStatement(ref return_stmt) => self.generate_return_statement(return_stmt, var_map),
-            parser::nodes::Statement::ExpressionStatement(ref expr_stmt) => self.generate_expression_statement(expr_stmt, var_map),
-            parser::nodes::Statement::IfStatement(ref if_stmt) => self.generate_if_statement(if_stmt, var_map),
-            parser::nodes::Statement::WhileStatement(ref while_stmt) => self.generate_while_statement(while_stmt, var_map),
-            parser::nodes::Statement::FunctionDeclaration(ref func_decl) =>self.generate_function_declaration(func_decl), // doesnt currently need var_map
-            parser::nodes::Statement::VariableDeclaration(ref var_decl) => self.generate_variable_declaration(var_decl, var_map),
-            parser::nodes::Statement::Compound(ref block_stmt) => self.generate_block_statement(block_stmt, var_map)
+            parser::nodes::Statement::ReturnStatement(ref return_stmt) => self.generate_return_statement(return_stmt, context),
+            parser::nodes::Statement::ExpressionStatement(ref expr_stmt) => self.generate_expression_statement(expr_stmt, context),
+            parser::nodes::Statement::IfStatement(ref if_stmt) => self.generate_if_statement(if_stmt, context),
+            parser::nodes::Statement::WhileStatement(ref while_stmt) => self.generate_while_statement(while_stmt, context),
+            parser::nodes::Statement::BreakStatement => self.generate_break_statement(context),
+            parser::nodes::Statement::ContinueStatement => self.generate_continue_statement(context),
+            parser::nodes::Statement::FunctionDeclaration(ref func_decl) =>self.generate_function_declaration(func_decl), // doesnt currently need context
+            parser::nodes::Statement::VariableDeclaration(ref var_decl) => self.generate_variable_declaration(var_decl, context),
+            parser::nodes::Statement::Compound(ref block_stmt) => self.generate_block_statement(block_stmt, context),
+            parser::nodes::Statement::Empty => String::new(),
         }
     }
 
-    fn generate_return_statement(&mut self, stmt: &parser::nodes::ReturnStatement, var_map: &mut VarMap) -> String {
+    fn generate_variables_clear(&mut self, var_map: &VarMap) -> String {
+        // clears variables (just by moving rsp to the top of the stack (where it was at the start of the var_map))
+
+        /*/
+         * addq {-vm.stack_index - 8}, %rsp
+         */
+
+        format!("\taddq ${}, %rsp\n", -var_map.stack_index - 8)
+    }
+
+    fn generate_return_statement(&mut self, stmt: &parser::nodes::ReturnStatement, context: &mut Context) -> String {
         /*/
          * {return_value}
-         * movq %rbp, %rsp // restore old stack pointer
+         * {generate_variables_clear}
          * pop %rbp // restore old base pointer
          * ret
          */
 
-        format!("{}\tmovq %rbp, %rsp\n\tpop %rbp\n\tret\n", self.generate_expression(&stmt.return_value, var_map))
+        format!("{}{}\tpop %rbp\n\tret\n", self.generate_expression(&stmt.return_value, context), self.generate_variables_clear(&context.var_map))
     }
 
-    fn generate_expression_statement(&mut self, stmt: &parser::nodes::ExpressionStatement, var_map: &mut VarMap) -> String {
-        self.generate_expression(&stmt.expression, var_map)
+    fn generate_expression_statement(&mut self, stmt: &parser::nodes::ExpressionStatement, context: &mut Context) -> String {
+        self.generate_expression(&stmt.expression, context)
     }
 
-    fn generate_if_statement(&mut self, stmt: &parser::nodes::IfStatement, var_map: &mut VarMap) -> String {
+    fn generate_if_statement(&mut self, stmt: &parser::nodes::IfStatement, context: &mut Context) -> String {
         /*/
          * {condition}
          * cmpq $0, %rax
@@ -125,15 +143,15 @@ impl CodeGen {
 
         let mut code = String::new();
 
-        let condition = self.generate_expression(&stmt.condition, var_map);
-        let consequence = self.generate_statement(&stmt.consequence, var_map);
+        let condition = self.generate_expression(&stmt.condition, context);
+        let consequence = self.generate_statement(&stmt.consequence, context);
         
         code.push_str(&format!("{}\tcmpq $0, %rax\n\tje .L{}\n{}", condition, self.label_count, consequence));
 
         if stmt.alternative.is_some() {
             let label_count = self.label_count;
             self.label_count += 2;
-            let alternative = self.generate_statement(stmt.alternative.as_ref().unwrap(), var_map);
+            let alternative = self.generate_statement(stmt.alternative.as_ref().unwrap(), context);
             code.push_str(&format!("\tjmp .L{}\n.L{}:\n{}\n.L{}:\n", label_count + 1, label_count, alternative, label_count + 1));
         } else {
             code.push_str(&format!(".L{}:\n", self.label_count));
@@ -142,7 +160,7 @@ impl CodeGen {
         code
     }
 
-    fn generate_while_statement(&mut self, stmt: &parser::nodes::WhileStatement, var_map: &mut VarMap) -> String {
+    fn generate_while_statement(&mut self, stmt: &parser::nodes::WhileStatement, context: &mut Context) -> String {
         /*/
          * .L{label_count}:
          * {condition}
@@ -157,98 +175,128 @@ impl CodeGen {
         let label_count = self.label_count;
         self.label_count += 2;
 
-        let condition = self.generate_expression(&stmt.condition, var_map);
-        let body = self.generate_statement(&stmt.body, var_map);
+        context.loop_start = Some(label_count as usize);
+        context.loop_end = Some((label_count + 1) as usize);
+
+        let condition = self.generate_expression(&stmt.condition, context);
+        let body = self.generate_statement(&stmt.body, context);
 
         code.push_str(&format!("{}\tcmpq $0, %rax\n\tje .L{}\n{}\tjmp .L{}\n.L{}:\n", condition, label_count + 1, body, label_count, label_count + 1));
 
         code
     }
 
+    fn generate_break_statement(&mut self, context: &Context) -> String {
+        /*/
+         * jmp .L{loop end label}
+         */
+
+        if context.loop_end.is_none() {
+            panic!("break statement outside of loop");
+        }
+
+        format!("\tjmp .L{}\n", context.loop_end.unwrap())
+    }
+
+    fn generate_continue_statement(&mut self, context: &Context) -> String {
+        /*/
+         * jmp .L{loop start label}
+         */
+
+        if context.loop_start.is_none() {
+            panic!("continue statement outside of loop");
+        }
+
+        format!("\tjmp .L{}\n", context.loop_start.unwrap())
+    }
+
     fn generate_function_declaration(&mut self, stmt: &parser::nodes::FunctionDeclaration) -> String {
         /*/
          * {function_name}:
+         * push %rbp ; save old base pointer
+         * mov %rsp, %rbp ; set new base pointer
          * {body}
+         * {generate_variables_clear}
+         * pop %rbp // restore old base pointer
          * movq $0, %rax // return 0
          * ret
          */
 
         
-        let mut code = format!("{}:\n", stmt.function_name);
-        let mut var_map = VarMap { hashmap: HashMap::new(), stack_index: -8 };
+        let mut code = format!("{}:\n\tpush %rbp\n\tmov %rsp, %rbp\n", stmt.function_name);
+        let mut context = Context::new();
 
-        code.push_str(&self.generate_statement(&stmt.body, &mut var_map));
+        code.push_str(&self.generate_statement(&stmt.body, &mut context));
 
-        code.push_str("\tmovq $0, %rax\n\tret\n");
+        code.push_str(&format!("{}\tpop %rbp\n\tmovq $0, %rax\n\tret\n", self.generate_variables_clear(&context.var_map)));
 
         code
     }
 
-    fn generate_variable_declaration(&mut self, stmt: &parser::nodes::VariableDeclaration, var_map: &mut VarMap) -> String {
-        if var_map.hashmap.contains_key(&stmt.ident.value) {
+    fn generate_variable_declaration(&mut self, stmt: &parser::nodes::VariableDeclaration, context: &mut Context) -> String {
+        if context.current_scope.hashmap.contains_key(&stmt.ident.value) {
             panic!("variable {} already declared", stmt.ident.value);
         }
 
         // TODO: allow variables defined in higher up scopes to be redeclared
-        var_map.hashmap.insert(stmt.ident.value.clone(), var_map.stack_index);
+        context.var_map.hashmap.insert(stmt.ident.value.clone(), context.var_map.stack_index);
+        context.current_scope.hashmap.insert(stmt.ident.value.clone(), context.var_map.stack_index);
 
-        var_map.stack_index -= 8;
+        context.var_map.stack_index -= 8;
+        context.current_scope.stack_index -= 8;
 
         /*/
          * {expr}
          * pushq %rax
          */
 
-        format!("{}\tpushq %rax\n", self.generate_expression(&stmt.expr, var_map))
+        format!("{}\tpushq %rax\n", self.generate_expression(&stmt.expr, context))
     }
 
-    fn generate_expression(&mut self, expr: &parser::nodes::Expression, var_map: &mut VarMap) -> String {
+    fn generate_expression(&mut self, expr: &parser::nodes::Expression, context: &mut Context) -> String {
         match *expr {
             parser::nodes::Expression::Literal(ref lit) => self.generate_literal(lit),
-            parser::nodes::Expression::Identifier(ref ident) => self.generate_identifier(ident, var_map),
-            parser::nodes::Expression::BinOp(ref left, ref op, ref right) => self.generate_bin_op(op, left, right, var_map),
-            parser::nodes::Expression::UnaryOp(ref op, ref expr) => self.generate_unary_op(op, expr, var_map),
-            parser::nodes::Expression::Assignment(ref ident, ref expr) => self.generate_assignment(ident, expr, var_map),
-            parser::nodes::Expression::Conditional(ref flag, ref left, ref right) => self.generate_conditional(flag, left, right, var_map),
+            parser::nodes::Expression::Identifier(ref ident) => self.generate_identifier(ident, context),
+            parser::nodes::Expression::BinOp(ref left, ref op, ref right) => self.generate_bin_op(op, left, right, context),
+            parser::nodes::Expression::UnaryOp(ref op, ref expr) => self.generate_unary_op(op, expr, context),
+            parser::nodes::Expression::Assignment(ref ident, ref expr) => self.generate_assignment(ident, expr, context),
+            parser::nodes::Expression::Conditional(ref flag, ref left, ref right) => self.generate_conditional(flag, left, right, context),
         }
     }
 
-    fn generate_block_statement(&mut self, stmt_list: &parser::nodes::CompoundStatement, var_map: &VarMap) -> String {
-        let mut code = "\tpush %rbp\n\tmov %rsp, %rbp\n".to_string();
+    fn generate_block_statement(&mut self, stmt_list: &parser::nodes::CompoundStatement, context: &Context) -> String {
+        let mut code = String::new();
 
         /*/
-         * push %rbp ; save old base pointer
-         * mov %rsp, %rbp ; set new base pointer
          * {code}
-         * movq %rbp, %rsp ; restore old stack pointer
-         * pop %rbp ; restore old base pointer
-         * subq {size_of_vars}, %rsp ; remove variables from stack
+         * {generate_variables_clear}
          */
 
-        let mut new_var_map = (*var_map).clone();
+        let mut new_context = context.clone();
+        new_context.current_scope = VarMap::new();
         for stmt in &stmt_list.statements {
-            code.push_str(&self.generate_statement(stmt, &mut new_var_map));
+            code.push_str(&self.generate_statement(stmt, &mut new_context));
         }
 
-        code.push_str(&format!("\tmovq %rbp, %rsp\n\tpop %rbp\n\tsubq ${}, %rsp\n", new_var_map.stack_index + 8));
+        code.push_str(&self.generate_variables_clear(&new_context.current_scope));
     
         code
     }
 
-    fn generate_assignment(&mut self, ident: &parser::nodes::Identifier, expr: &parser::nodes::Expression, var_map: &mut VarMap) -> String {
-        let expr = self.generate_expression(expr, var_map);
+    fn generate_assignment(&mut self, ident: &parser::nodes::Identifier, expr: &parser::nodes::Expression, context: &mut Context) -> String {
+        let expr = self.generate_expression(expr, context);
 
         /*/
          * {expr}
          * movq %rax, {index}(%rbp)
          */
 
-        let index = var_map.hashmap[&ident.value];
+        let index = context.var_map.hashmap[&ident.value];
 
         format!("{}\tmovq %rax, {}(%rbp)\n", expr, index)
     }
 
-    fn generate_conditional(&mut self, flag: &parser::nodes::Expression, left: &parser::nodes::Expression, right: &parser::nodes::Expression, var_map: &mut VarMap) -> String {
+    fn generate_conditional(&mut self, flag: &parser::nodes::Expression, left: &parser::nodes::Expression, right: &parser::nodes::Expression, context: &mut Context) -> String {
         /*/
          * {condition}
          * cmpq $0, %rax
@@ -262,26 +310,26 @@ impl CodeGen {
 
         let mut code = String::new();
 
-        let condition = self.generate_expression(flag, var_map);
-        let consequence = self.generate_expression(left, var_map);
+        let condition = self.generate_expression(flag, context);
+        let consequence = self.generate_expression(left, context);
         
         code.push_str(&format!("{}\tcmpq $0, %rax\n\tje .L{}\n{}", condition, self.label_count, consequence));
 
         let label_count = self.label_count;
         self.label_count += 2;
-        let alternative = self.generate_expression(right, var_map);
+        let alternative = self.generate_expression(right, context);
         code.push_str(&format!("\tjmp .L{}\n.L{}:\n{}\n.L{}:\n", label_count + 1, label_count, alternative, label_count + 1));
         
         code
     }
 
-    fn generate_identifier(&self, ident: &parser::nodes::Identifier, var_map: &mut VarMap) -> String {
+    fn generate_identifier(&self, ident: &parser::nodes::Identifier, context: &mut Context) -> String {
         // check that variable is declared
-        if !var_map.hashmap.contains_key(&ident.value) {
+        if !context.var_map.hashmap.contains_key(&ident.value) {
             panic!("variable {} not declared", ident.value);
         }
 
-        let index = var_map.hashmap[&ident.value];
+        let index = context.var_map.hashmap[&ident.value];
 
         /*/
          * movq {index}(%rbp), %rax
@@ -290,27 +338,27 @@ impl CodeGen {
         format!("\tmovq {}(%rbp), %rax\n", index)
     }
 
-    fn generate_bin_op(&mut self, op: &parser::nodes::BinOp, left: &Box<parser::nodes::Expression>, right: &Box<parser::nodes::Expression>, var_map: &mut VarMap) -> String {
+    fn generate_bin_op(&mut self, op: &parser::nodes::BinOp, left: &Box<parser::nodes::Expression>, right: &Box<parser::nodes::Expression>, context: &mut Context) -> String {
 
         match *op {
-            parser::nodes::BinOp::Add => self.generate_addition(left, right, var_map),
-            parser::nodes::BinOp::Subtract => self.generate_subtraction(left, right, var_map),
-            parser::nodes::BinOp::Multiply => self.generate_multiplication(left, right, var_map),
-            parser::nodes::BinOp::Divide => self.generate_division(left, right, var_map),
-            parser::nodes::BinOp::And => self.generate_and(left, right, var_map),
-            parser::nodes::BinOp::Or => self.generate_or(left, right, var_map),
-            parser::nodes::BinOp::Equal => self.generate_comparison("sete", left, right, var_map),
-            parser::nodes::BinOp::NotEqual => self.generate_comparison("setne", left, right, var_map),
-            parser::nodes::BinOp::LessThan => self.generate_comparison("setl", left, right, var_map),
-            parser::nodes::BinOp::LessThanEqual => self.generate_comparison("setle", left, right, var_map),
-            parser::nodes::BinOp::GreaterThan => self.generate_comparison("setg", left, right, var_map),
-            parser::nodes::BinOp::GreaterThanEqual => self.generate_comparison("setge", left, right, var_map),
+            parser::nodes::BinOp::Add => self.generate_addition(left, right, context),
+            parser::nodes::BinOp::Subtract => self.generate_subtraction(left, right, context),
+            parser::nodes::BinOp::Multiply => self.generate_multiplication(left, right, context),
+            parser::nodes::BinOp::Divide => self.generate_division(left, right, context),
+            parser::nodes::BinOp::And => self.generate_and(left, right, context),
+            parser::nodes::BinOp::Or => self.generate_or(left, right, context),
+            parser::nodes::BinOp::Equal => self.generate_comparison("sete", left, right, context),
+            parser::nodes::BinOp::NotEqual => self.generate_comparison("setne", left, right, context),
+            parser::nodes::BinOp::LessThan => self.generate_comparison("setl", left, right, context),
+            parser::nodes::BinOp::LessThanEqual => self.generate_comparison("setle", left, right, context),
+            parser::nodes::BinOp::GreaterThan => self.generate_comparison("setg", left, right, context),
+            parser::nodes::BinOp::GreaterThanEqual => self.generate_comparison("setge", left, right, context),
         }
     }
 
-    fn generate_addition(&mut self, left: &Box<parser::nodes::Expression>, right: &Box<parser::nodes::Expression>, var_map: &mut VarMap) -> String {
-        let left = self.generate_expression(left, var_map);
-        let right = self.generate_expression(right, var_map);
+    fn generate_addition(&mut self, left: &Box<parser::nodes::Expression>, right: &Box<parser::nodes::Expression>, context: &mut Context) -> String {
+        let left = self.generate_expression(left, context);
+        let right = self.generate_expression(right, context);
 
         /*/
          * {left}
@@ -323,9 +371,9 @@ impl CodeGen {
         format!("{}\tpushq %rax\n{}\tpopq %rcx\n\taddq %rcx, %rax\n", left, right)
     }
 
-    fn generate_subtraction(&mut self, left: &Box<parser::nodes::Expression>, right: &Box<parser::nodes::Expression>, var_map: &mut VarMap) -> String {
-        let left = self.generate_expression(left, var_map);
-        let right = self.generate_expression(right, var_map);
+    fn generate_subtraction(&mut self, left: &Box<parser::nodes::Expression>, right: &Box<parser::nodes::Expression>, context: &mut Context) -> String {
+        let left = self.generate_expression(left, context);
+        let right = self.generate_expression(right, context);
 
         /*/
          * {left}
@@ -339,9 +387,9 @@ impl CodeGen {
         format!("{}\tpushq %rax\n{}\tmovq %rax, %rcx\n\tpopq %rax\n\tsubq %rcx, %rax\n", left, right)
     }
 
-    fn generate_multiplication(&mut self, left: &Box<parser::nodes::Expression>, right: &Box<parser::nodes::Expression>, var_map: &mut VarMap) -> String {
-        let left = self.generate_expression(left, var_map);
-        let right = self.generate_expression(right, var_map);
+    fn generate_multiplication(&mut self, left: &Box<parser::nodes::Expression>, right: &Box<parser::nodes::Expression>, context: &mut Context) -> String {
+        let left = self.generate_expression(left, context);
+        let right = self.generate_expression(right, context);
 
         /*/
          * {left}
@@ -354,9 +402,9 @@ impl CodeGen {
         format!("{}\tpushq %rax\n{}\tpopq %rcx\n\timulq %rcx, %rax\n", left, right)
     }
 
-    fn generate_division(&mut self, left: &Box<parser::nodes::Expression>, right: &Box<parser::nodes::Expression>, var_map: &mut VarMap) -> String {
-        let left = self.generate_expression(left, var_map);
-        let right = self.generate_expression(right, var_map);
+    fn generate_division(&mut self, left: &Box<parser::nodes::Expression>, right: &Box<parser::nodes::Expression>, context: &mut Context) -> String {
+        let left = self.generate_expression(left, context);
+        let right = self.generate_expression(right, context);
 
         /*/
          * {left}
@@ -371,9 +419,9 @@ impl CodeGen {
         format!("{}\tpushq %rax\n{}\tmovq %rax, %rcx\n\tpopq %rax\n\tcqto\n\tidivq %rcx\n", left, right)
     }
 
-    fn generate_and(&mut self, left: &Box<parser::nodes::Expression>, right: &Box<parser::nodes::Expression>, var_map: &mut VarMap) -> String {
-        let left = self.generate_expression(left, var_map);
-        let right = self.generate_expression(right, var_map);
+    fn generate_and(&mut self, left: &Box<parser::nodes::Expression>, right: &Box<parser::nodes::Expression>, context: &mut Context) -> String {
+        let left = self.generate_expression(left, context);
+        let right = self.generate_expression(right, context);
 
         /*/
          * {left}
@@ -395,9 +443,9 @@ impl CodeGen {
         format!("{}\tcmpq $0, %rax\n\tje .L{}\n{}\tcmpq $0, %rax\n\tje .L{}\n\tmovq $1, %rax\n\tjmp .L{}\n.L{}:\n\tmovq $0, %rax\n.L{}:\n", left, self.label_count - 2, right, self.label_count - 1, self.label_count - 1, self.label_count - 2, self.label_count -1)
     }
 
-    fn generate_or(&mut self, left: &Box<parser::nodes::Expression>, right: &Box<parser::nodes::Expression>, var_map: &mut VarMap) -> String {
-        let left = self.generate_expression(left, var_map);
-        let right = self.generate_expression(right, var_map);
+    fn generate_or(&mut self, left: &Box<parser::nodes::Expression>, right: &Box<parser::nodes::Expression>, context: &mut Context) -> String {
+        let left = self.generate_expression(left, context);
+        let right = self.generate_expression(right, context);
 
         /*/
          * {left}
@@ -419,9 +467,9 @@ impl CodeGen {
         format!("{}\tcmpq $0, %rax\n\tjne .L{}\n{}\tcmpq $0, %rax\n\tjne .L{}\n\tmovq $0, %rax\n\tjmp .L{}\n.L{}:\n\tmovq $1, %rax\n.L{}:\n", left, self.label_count - 2, right, self.label_count - 1, self.label_count - 1, self.label_count - 2, self.label_count -1)
     }
 
-    fn generate_comparison(&mut self, set: &str, left: &Box<parser::nodes::Expression>, right: &Box<parser::nodes::Expression>, var_map: &mut VarMap) -> String {
-        let left = self.generate_expression(left, var_map);
-        let right = self.generate_expression(right, var_map);
+    fn generate_comparison(&mut self, set: &str, left: &Box<parser::nodes::Expression>, right: &Box<parser::nodes::Expression>, context: &mut Context) -> String {
+        let left = self.generate_expression(left, context);
+        let right = self.generate_expression(right, context);
 
         /*/
          * {right}
@@ -437,8 +485,8 @@ impl CodeGen {
         format!("{}\tpushq %rax\n{}\tpopq %rcx\n\tcmpq %rcx, %rax\n\t{} %al\n", right, left, set)
     }
 
-    fn generate_unary_op(&mut self, op: &parser::nodes::UnaryOp, expr: &Box<parser::nodes::Expression>, var_map: &mut VarMap) -> String {
-        let expr = self.generate_expression(expr, var_map);
+    fn generate_unary_op(&mut self, op: &parser::nodes::UnaryOp, expr: &Box<parser::nodes::Expression>, context: &mut Context) -> String {
+        let expr = self.generate_expression(expr, context);
 
         match *op {
             parser::nodes::UnaryOp::BitwiseComplement => format!("{}\tnegq %rax\n", expr),

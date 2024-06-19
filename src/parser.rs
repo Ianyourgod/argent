@@ -27,7 +27,7 @@ impl Parser {
         let diff = lines[line].len() - error_text.len();
 
         let mut arrows = String::new();
-        for _ in 0..(position - diff - length + 1) {
+        for _ in 0..(position + 1 - diff - length) {
             arrows.push_str(" ");
         }
         for _ in position..(position+length) {
@@ -76,11 +76,17 @@ impl Parser {
                     "int" => self.parse_declaration(),
                     "if" => self.parse_if_statement(),
                     "while" => self.parse_while_statement(),
+                    "break" => self.parse_break_statement(),
+                    "continue" => self.parse_continue_statement(),
+                    // todo: for loop
                     _ => self.parse_expression_statement(),
                 }
             },
             lexer::TokenType::LBrace => {
                 self.parse_block_statement()
+            },
+            lexer::TokenType::SemiColon => {
+                Box::new(nodes::Statement::Empty)
             }
             _ => self.parse_expression_statement(),
         }
@@ -108,6 +114,9 @@ impl Parser {
         if self.cur_token.kind == lexer::TokenType::Assign {
             self.next_token();
             let expr = self.parse_expression();
+            if self.cur_token.kind != lexer::TokenType::SemiColon {
+                self.error("unexpected character, expected semicolon".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+            }
             Box::new(nodes::Statement::VariableDeclaration(nodes::VariableDeclaration {
                 kind: "int".to_string(),
                 ident: nodes::Identifier { value: ident },
@@ -160,6 +169,22 @@ impl Parser {
             condition,
             body,
         }))
+    }
+
+    fn parse_break_statement(&mut self) -> Box<nodes::Statement> {
+        self.next_token();
+        if self.cur_token.kind != lexer::TokenType::SemiColon {
+            self.error("unexpected character, expected semicolon".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+        }
+        Box::new(nodes::Statement::BreakStatement)
+    }
+
+    fn parse_continue_statement(&mut self) -> Box<nodes::Statement> {
+        self.next_token();
+        if self.cur_token.kind != lexer::TokenType::SemiColon {
+            self.error("unexpected character, expected semicolon".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+        }
+        Box::new(nodes::Statement::ContinueStatement)
     }
 
     fn parse_function_declaration(&mut self, function_name: String) -> Box<nodes::Statement> {
@@ -221,7 +246,10 @@ impl Parser {
                 self.cur_token.kind == lexer::TokenType::DivideAssign    {
             let identifier = match *node {
                 nodes::Expression::Identifier(ref ident) => ident.clone(),
-                _ => panic!("expected identifier, got {:?}", node),
+                _ => {
+                    self.error(format!("Expected identifier, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+                    panic!();
+                },
             }; // just doing that so we can panic :bleh:
             let kind = self.cur_token.kind.clone();
             self.next_token();
@@ -252,7 +280,8 @@ impl Parser {
             self.next_token();
             let left = self.parse_expression();
             if self.cur_token.kind != lexer::TokenType::Colon {
-                panic!("expected colon, found {:#?}", self.cur_token.kind);
+                self.error(format!("Expected Colon, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+                panic!();
             }
             self.next_token();
             let right = self.parse_conditional();
@@ -289,7 +318,7 @@ impl Parser {
             let op = match self.cur_token.kind {
                 lexer::TokenType::Equal => nodes::BinOp::Equal,
                 lexer::TokenType::NotEqual => nodes::BinOp::NotEqual,
-                _ => panic!("unexpected token: {:?}", self.cur_token),
+                _ => panic!("how the fuck"),
             };
             self.next_token();
             let right = self.parse_relational();
@@ -309,7 +338,10 @@ impl Parser {
                 lexer::TokenType::LessThanEqual => nodes::BinOp::LessThanEqual,
                 lexer::TokenType::GreaterThan => nodes::BinOp::GreaterThan,
                 lexer::TokenType::GreaterThanEqual => nodes::BinOp::GreaterThanEqual,
-                _ => panic!("unexpected token: {:?}", self.cur_token),
+                _ => {
+                    self.error(format!("Unexpected token, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+                    panic!();
+                },
             };
             self.next_token();
             let right = self.parse_additive();
@@ -324,7 +356,10 @@ impl Parser {
             let op = match self.cur_token.kind {
                 lexer::TokenType::Add => nodes::BinOp::Add,
                 lexer::TokenType::Subtract => nodes::BinOp::Subtract,
-                _ => panic!("unexpected token: {:?}", self.cur_token),
+                _ => {
+                    self.error(format!("Unexpected token, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+                    panic!();
+                },
             };
             self.next_token();
             let right = self.parse_term();
@@ -339,7 +374,10 @@ impl Parser {
             let op = match self.cur_token.kind {
                 lexer::TokenType::Multiply => nodes::BinOp::Multiply,
                 lexer::TokenType::Divide => nodes::BinOp::Divide,
-                _ => panic!("unexpected token: {:?}", self.cur_token),
+                _ => {
+                    self.error(format!("Unexpected token, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+                    panic!();
+                },
             };
             self.next_token();
             let right = self.parse_factor();
@@ -381,12 +419,16 @@ impl Parser {
                 self.next_token();
                 let node = self.parse_expression();
                 if self.cur_token.kind != lexer::TokenType::RParen {
-                    panic!("Expected RParen, found {:#?}", self.cur_token.kind);
+                    self.error(format!("Expected RParen, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+                    panic!();
                 }
                 self.next_token();
                 node
             },
-            _ => panic!("unexpected token: {:?}", self.cur_token),
+            _ => {
+                self.error(format!("Unexpected token, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+                panic!();
+            },
         }
     }
 
