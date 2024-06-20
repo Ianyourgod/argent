@@ -10,17 +10,24 @@ pub struct CodeGen {
     source: String
 }
 
+#[derive(Clone, Debug)]
+struct Function {
+    name: String,
+    params: Vec<parser::nodes::FunctionArg>,
+}
+
 #[derive(Clone)]
 struct Context {
     var_map: VarMap,
     current_scope: VarMap,
     loop_start: Option<usize>,
     loop_end: Option<usize>,
+    functions: HashMap<String, Function>,
 }
 
 impl Context {
     fn new() -> Context {
-        Context { var_map: VarMap::new(), loop_start: None, loop_end: None, current_scope: VarMap::new() }
+        Context { var_map: VarMap::new(), loop_start: None, loop_end: None, current_scope: VarMap::new(), functions: HashMap::new()}
     }
 }
 
@@ -49,7 +56,7 @@ impl CodeGen {
     }
 
     pub fn generate_code(&mut self) -> String {
-        let mut code = ".globl main\n".to_string();
+        let mut code = String::new();
         let mut context = Context::new();
 
         for stmt in self.program.statements.clone() { // clone to avoid borrowing issues
@@ -97,7 +104,7 @@ impl CodeGen {
             parser::nodes::Statement::WhileStatement(ref while_stmt) => self.generate_while_statement(while_stmt, context),
             parser::nodes::Statement::BreakStatement => self.generate_break_statement(context),
             parser::nodes::Statement::ContinueStatement => self.generate_continue_statement(context),
-            parser::nodes::Statement::FunctionDeclaration(ref func_decl) =>self.generate_function_declaration(func_decl), // doesnt currently need context
+            parser::nodes::Statement::FunctionDeclaration(ref func_decl) =>self.generate_function_declaration(func_decl, &mut context.functions), // doesnt currently need context
             parser::nodes::Statement::VariableDeclaration(ref var_decl) => self.generate_variable_declaration(var_decl, context),
             parser::nodes::Statement::Compound(ref block_stmt) => self.generate_block_statement(block_stmt, context),
             parser::nodes::Statement::Empty => String::new(),
@@ -117,12 +124,12 @@ impl CodeGen {
     fn generate_return_statement(&mut self, stmt: &parser::nodes::ReturnStatement, context: &mut Context) -> String {
         /*/
          * {return_value}
-         * {generate_variables_clear}
+         * mov %rbp, %rsp // restore stack pointer
          * pop %rbp // restore old base pointer
          * ret
          */
 
-        format!("{}{}\tpop %rbp\n\tret\n", self.generate_expression(&stmt.return_value, context), self.generate_variables_clear(&context.var_map))
+        format!("{}\tmov %rbp, %rsp\n\tpop %rbp\n\tret\n", self.generate_expression(&stmt.return_value, context))
     }
 
     fn generate_expression_statement(&mut self, stmt: &parser::nodes::ExpressionStatement, context: &mut Context) -> String {
@@ -210,25 +217,60 @@ impl CodeGen {
         format!("\tjmp .L{}\n", context.loop_start.unwrap())
     }
 
-    fn generate_function_declaration(&mut self, stmt: &parser::nodes::FunctionDeclaration) -> String {
+    fn generate_function_declaration(&mut self, stmt: &parser::nodes::FunctionDeclaration, functions: &mut HashMap<String, Function>) -> String {
         /*/
+         * .globl {function_name}
          * {function_name}:
+         * {var setup}
          * push %rbp ; save old base pointer
          * mov %rsp, %rbp ; set new base pointer
          * {body}
-         * {generate_variables_clear}
+         * mov %rbp, %rsp // restore stack pointer
          * pop %rbp // restore old base pointer
          * movq $0, %rax // return 0
          * ret
          */
 
-        
-        let mut code = format!("{}:\n\tpush %rbp\n\tmov %rsp, %rbp\n", stmt.function_name);
+        if functions.contains_key(&stmt.function_name) {
+            panic!("function {} already declared", stmt.function_name);
+        }
+
+        functions.insert(
+            stmt.function_name.clone(),
+            Function {
+                name: stmt.function_name.clone(),
+                params: stmt.params.clone(),
+            }
+        );
+    
         let mut context = Context::new();
+        context.functions = functions.clone();
+
+        // args
+
+        let stack_index = stmt.params.len() as i32 * 8 - 8 - (if stmt.params.len() > 6 { 6 } else { stmt.params.len() } as i32 * 8);
+
+        let mut code = format!("\t.globl {}\n{}:\n\tpush %rbp\n\tmov %rsp, %rbp\n", stmt.function_name, stmt.function_name);
+        let mut arg_count = 0;
+        let arg_regs = vec!["%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"];
+
+        for arg in &stmt.params {
+            if arg_count < 6 {
+                context.var_map.hashmap.insert(arg.ident.value.clone(), context.var_map.stack_index);
+                code.push_str(&format!("\tmovq {}, {}(%rbp)\n", arg_regs[arg_count], context.var_map.stack_index));
+                context.var_map.stack_index -= 8;
+                arg_count += 1;
+            } else {
+                context.var_map.stack_index -= 8;
+                context.var_map.hashmap.insert(arg.ident.value.clone(), stack_index + 24); // +24 because of the return address and base pointer and the stack grows downwards
+            }
+        }
+
+        context.current_scope = context.var_map.clone();
 
         code.push_str(&self.generate_statement(&stmt.body, &mut context));
 
-        code.push_str(&format!("{}\tpop %rbp\n\tmovq $0, %rax\n\tret\n", self.generate_variables_clear(&context.var_map)));
+        code.push_str("\tmov %rbp, %rsp\n\tpop %rbp\n\tmovq $0, %rax\n\tret\n");
 
         code
     }
@@ -261,6 +303,7 @@ impl CodeGen {
             parser::nodes::Expression::UnaryOp(ref op, ref expr) => self.generate_unary_op(op, expr, context),
             parser::nodes::Expression::Assignment(ref ident, ref expr) => self.generate_assignment(ident, expr, context),
             parser::nodes::Expression::Conditional(ref flag, ref left, ref right) => self.generate_conditional(flag, left, right, context),
+            parser::nodes::Expression::FunctionCall(ref name, ref args) => self.generate_function_call(name, args, context),
         }
     }
 
@@ -294,6 +337,49 @@ impl CodeGen {
         let index = context.var_map.hashmap[&ident.value];
 
         format!("{}\tmovq %rax, {}(%rbp)\n", expr, index)
+    }
+
+    fn generate_function_call(&mut self, name: &String, args: &Vec<Box<parser::nodes::Expression>>, context: &mut Context) -> String {
+        if !context.functions.contains_key(name) {
+            //panic!("function {} not declared", name);
+        }
+
+        /*
+        let function = &context.functions[name];
+
+        if function.params.len() != args.len() {
+            panic!("function {} expected {} arguments, got {}", name, function.params.len(), args.len());
+        }
+        */
+
+        let mut code = String::new();
+
+        /*/
+         * {args stuff}
+         * call {name}
+         * {clear args}
+         */
+
+        let mut arg_count = 0;
+        let arg_regs = vec!["%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"];
+
+        for arg in args.iter().rev() {
+            code.push_str(&self.generate_expression(arg, context));
+            if arg_count < 6 {
+                code.push_str(&format!("\tmovq %rax, {}\n", arg_regs[arg_count]));
+                arg_count += 1;
+            } else {
+                code.push_str("\tpushq %rax\n");
+            }
+        }
+
+        code.push_str(&format!("\tcall {}\n", name));
+
+        for _ in 6..args.len() {
+            code.push_str("\tpopq %rcx\n")
+        }
+
+        code
     }
 
     fn generate_conditional(&mut self, flag: &parser::nodes::Expression, left: &parser::nodes::Expression, right: &parser::nodes::Expression, context: &mut Context) -> String {

@@ -40,7 +40,14 @@ pub struct WhileStatement {
 #[derive(Debug, Clone)]
 pub struct FunctionDeclaration {
     pub function_name: String,
+    pub params: Vec<FunctionArg>,
     pub body: Box<Statement>,
+}
+
+#[derive(Debug, Clone)]
+pub struct FunctionArg {
+    pub kind: String,
+    pub ident: Identifier,
 }
 
 #[derive(Debug, Clone)]
@@ -63,6 +70,7 @@ pub enum Expression {
     UnaryOp(UnaryOp, Box<Expression>),
     Assignment(Identifier, Box<Expression>),
     Conditional(Box<Expression>, Box<Expression>, Box<Expression>),
+    FunctionCall(String, Vec<Box<Expression>>),
 }
 
 #[derive(Debug, Clone, Copy)]

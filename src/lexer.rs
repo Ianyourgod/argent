@@ -33,6 +33,7 @@ pub enum TokenType {
     DivideAssign,
     Colon,
     QuestionMark,
+    Comma,
 }
 
 #[derive(Debug, Clone)]
@@ -208,6 +209,10 @@ impl Lexer {
                 self.read_char();
                 self.create_token(TokenType::QuestionMark, BLANK, 1)
             },
+            ',' => {
+                self.read_char();
+                self.create_token(TokenType::Comma, BLANK, 1)
+            }
             '\0' => self.create_token(TokenType::EOF, BLANK, 1),
             _ => {
                 if self.ch.is_alphabetic() || self.ch == '_' {
