@@ -14,6 +14,7 @@ pub struct CodeGen {
 struct Function {
     name: String,
     params: Vec<parser::nodes::FunctionArg>,
+    return_type: String,
 }
 
 #[derive(Clone)]
@@ -22,12 +23,13 @@ struct Context {
     current_scope: VarMap,
     loop_start: Option<usize>,
     loop_end: Option<usize>,
+    return_type: String,
     functions: HashMap<String, Function>,
 }
 
 impl Context {
     fn new() -> Context {
-        Context { var_map: VarMap::new(), loop_start: None, loop_end: None, current_scope: VarMap::new(), functions: HashMap::new()}
+        Context { var_map: VarMap::new(), loop_start: None, loop_end: None, current_scope: VarMap::new(), functions: HashMap::new(), return_type: String::new() }
     }
 }
 
@@ -249,10 +251,13 @@ impl CodeGen {
             Function {
                 name: stmt.function_name.clone(),
                 params: stmt.params.clone(),
+                return_type: stmt.return_type.clone(),
             }
         );
     
         let mut new_context = context.clone();
+
+        new_context.return_type = stmt.return_type.clone();
 
         // args
 
@@ -292,15 +297,17 @@ impl CodeGen {
         context.var_map.hashmap.insert(stmt.ident.value.clone(), context.var_map.stack_index);
         context.current_scope.hashmap.insert(stmt.ident.value.clone(), context.var_map.stack_index);
 
+        let var_index = context.var_map.stack_index;
+
         context.var_map.stack_index -= 8;
         context.current_scope.stack_index -= 8;
 
         /*/
          * {expr}
-         * pushq %rax
+         * movq %rax, {index}(%rbp)
          */
 
-        format!("{}\tpushq %rax\n", self.generate_expression(&stmt.expr, context))
+        format!("{}\tmovq %rax, {}(%rbp)\n", self.generate_expression(&stmt.expr, context), var_index)
     }
 
     fn generate_expression(&mut self, expr: &parser::nodes::Expression, context: &mut Context) -> String {
@@ -349,16 +356,15 @@ impl CodeGen {
 
     fn generate_function_call(&mut self, name: &String, args: &Vec<Box<parser::nodes::Expression>>, context: &mut Context) -> String {
         if !context.functions.contains_key(name) {
-            //panic!("function {} not declared", name);
+            panic!("function {} not declared", name);
         }
 
-        /*
+        
         let function = &context.functions[name];
 
         if function.params.len() != args.len() {
             panic!("function {} expected {} arguments, got {}", name, function.params.len(), args.len());
         }
-        */
 
         let mut code = String::new();
 

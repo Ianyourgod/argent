@@ -34,6 +34,7 @@ pub enum TokenType {
     Colon,
     QuestionMark,
     Comma,
+    Arrow,
 }
 
 #[derive(Debug, Clone)]
@@ -117,6 +118,9 @@ impl Lexer {
                 if self.ch == '=' {
                     self.read_char();
                     self.create_token(TokenType::SubtractAssign, BLANK, 2)
+                } else if self.ch == '>' {
+                    self.read_char();
+                    self.create_token(TokenType::Arrow, BLANK, 2)
                 } else {
                     self.create_token(TokenType::Subtract, BLANK, 1)
                 }
@@ -253,7 +257,8 @@ impl Lexer {
             self.read_char();
         }
 
-        let keywords = vec!["int", "return", "if", "else", "while", "break", "continue"];
+        let keywords = vec!["fn", "let", "int", "return", "if", "else", "while", "break", "continue"];
+        // todo: remove int from keywords and improve the type system
 
         let literal = self.input[position..self.position].to_string();
 

@@ -42,6 +42,7 @@ pub struct FunctionDeclaration {
     pub function_name: String,
     pub params: Vec<FunctionArg>,
     pub body: Box<Statement>,
+    pub return_type: String,
 }
 
 #[derive(Debug, Clone)]
