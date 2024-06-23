@@ -11,6 +11,7 @@ fn help(err_code: i32) {
     argent run <filename> - to run the file
     argent build <filename> - to compile the file
     argent help - to show this message");
+
     std::process::exit(err_code);
 }
 
@@ -60,14 +61,27 @@ fn error(filename: String, input: String, error_message: String, line: usize, po
     } else {
         ""
     };
+    let trimmed_top_line = top_line.trim_start();
 
-    let split = top_line.split_at(error_line.len()-trimmed_line.len());
-    let mut error_text = split.1.to_string();
+    let final_top_line: &str;
+    let final_error_line: &str;
+
+    if top_line.len() - trimmed_top_line.len() < error_line.len() - trimmed_line.len() {
+        final_top_line = trimmed_top_line;
+        let split = error_line.split_at(top_line.len()-trimmed_top_line.len());
+        final_error_line = split.1;
+    } else {
+        final_error_line = trimmed_line;
+        let split = top_line.split_at(error_line.len()-trimmed_line.len());
+        final_top_line = split.1;
+    }
+
+    let mut error_text = final_top_line.to_string();
 
     error_text.push_str("\n");
-    error_text.push_str(trimmed_line);
+    error_text.push_str(final_error_line);
 
-    let diff = error_line.len() - error_line.trim_start().len();
+    let diff = error_line.len() - final_error_line.len();
 
     let mut arrows = String::new();
     for _ in 0..(position - diff - 1) {
