@@ -37,7 +37,7 @@ pub enum TokenType {
     Arrow,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Token {
     pub kind: TokenType,
     pub literal: String,
@@ -80,8 +80,8 @@ impl Lexer {
         l
     }
 
-    fn create_token(&mut self, kind: TokenType, literal: String, length: usize) -> Token {
-        Token { kind, literal, line: self.line, pos: (if self.pos < 2 {self.pos} else {self.pos-2}), length }
+    fn create_token(&mut self, kind: TokenType, literal: String, line: usize, pos: usize, length: usize) -> Token {
+        Token { kind, literal, line, pos, length }
     }
 
     pub fn next_token(&mut self) -> Token {
@@ -89,144 +89,186 @@ impl Lexer {
         const BLANK: String = String::new();
         let tok = match self.ch {
             '(' => {
+                let tok = self.create_token(TokenType::LParen, BLANK, self.line, self.position, 1);
                 self.read_char();
-                self.create_token(TokenType::LParen, BLANK, 1)
+                tok  
             },
             ')' => {
+                let tok = self.create_token(TokenType::RParen, BLANK, self.line, self.position, 1);
                 self.read_char();
-                self.create_token(TokenType::RParen, BLANK, 1)
+                tok
             },
             '{' => {
+                let tok = self.create_token(TokenType::LBrace, BLANK, self.line, self.position, 1);
                 self.read_char();
-                self.create_token(TokenType::LBrace, BLANK, 1)
+                tok
             },
             '}' => {
+                let tok = self.create_token(TokenType::RBrace, BLANK, self.line, self.position, 1);
                 self.read_char();
-                self.create_token(TokenType::RBrace, BLANK, 1)
+                tok
             },
             '+' => {
+                let start_line = self.line;
+                let start_pos = self.position;
                 self.read_char();
                 if self.ch == '=' {
+                    let tok = self.create_token(TokenType::AddAssign, BLANK, self.line, start_pos, 2);
                     self.read_char();
-                    self.create_token(TokenType::AddAssign, BLANK, 2)
+                    tok
                 } else {
-                    self.create_token(TokenType::Add, BLANK, 1)
+                    self.create_token(TokenType::Add, BLANK, start_line, start_pos, 1)
                 }
             },
             '-' => {
+                let start_line = self.line;
+                let start_pos = self.position;
                 self.read_char();
                 if self.ch == '=' {
+                    let tok = self.create_token(TokenType::SubtractAssign, BLANK, self.line, start_pos, 2);
                     self.read_char();
-                    self.create_token(TokenType::SubtractAssign, BLANK, 2)
+                    tok
                 } else if self.ch == '>' {
+                    let tok = self.create_token(TokenType::Arrow, BLANK, self.line, start_pos, 2);
                     self.read_char();
-                    self.create_token(TokenType::Arrow, BLANK, 2)
+                    tok
                 } else {
-                    self.create_token(TokenType::Subtract, BLANK, 1)
+                    self.create_token(TokenType::Subtract, BLANK, start_line, start_pos, 1)
                 }
             },
             '*' => {
+                let start_line = self.line;
+                let start_pos = self.position;
                 self.read_char();
                 if self.ch == '=' {
+                    let tok = self.create_token(TokenType::MultiplyAssign, BLANK, self.line, start_pos, 2);
                     self.read_char();
-                    self.create_token(TokenType::MultiplyAssign, BLANK, 2)
+                    tok
                 } else {
-                    self.create_token(TokenType::Multiply, BLANK, 1)
+                    self.create_token(TokenType::Multiply, BLANK, start_line, start_pos, 1)
                 }
             },
             '/' => {
+                let start_line = self.line;
+                let start_pos = self.position;
                 self.read_char();
                 if self.ch == '=' {
+                    let tok = self.create_token(TokenType::DivideAssign, BLANK, self.line, start_pos, 2);
                     self.read_char();
-                    self.create_token(TokenType::DivideAssign, BLANK, 2)
+                    tok
                 } else {
-                    self.create_token(TokenType::Divide, BLANK, 1)
+                    self.create_token(TokenType::Divide, BLANK, start_line, start_pos, 1)
                 }
             },
             ';' => {
+                let tok = self.create_token(TokenType::SemiColon, BLANK, self.line, self.position, 1);
                 self.read_char();
-                self.create_token(TokenType::SemiColon, BLANK, 1)
+                tok
             },
             '~' => {
+                let tok = self.create_token(TokenType::BitwiseComplement, BLANK, self.line, self.position, 1);
                 self.read_char();
-                self.create_token(TokenType::BitwiseComplement, BLANK, 1)
+                tok
             },
             '!' => {
+                let start_line = self.line;
+                let start_pos = self.position;
                 self.read_char();
                 if self.ch == '=' {
+                    let tok = self.create_token(TokenType::NotEqual, BLANK, self.line, start_pos, 2);
                     self.read_char();
-                    self.create_token(TokenType::NotEqual, BLANK, 2)
+                    tok
                 } else {
-                    self.create_token(TokenType::LogicalNegation, BLANK, 1)
+                    self.create_token(TokenType::LogicalNegation, BLANK, start_line, start_pos, 1)
                 }
             },
             '&' => {
+                let start_line = self.line;
+                let start_pos = self.position;
                 self.read_char();
                 if self.ch == '&' {
+                    let tok = self.create_token(TokenType::And, BLANK, self.line, start_pos, 2);
                     self.read_char();
-                    self.create_token(TokenType::And, BLANK, 2)
+                    tok
                 } else {
-                    self.create_token(TokenType::Error, "unexpected character, expected &".to_string(), 1)
+                    self.create_token(TokenType::Error, "unexpected character, expected &".to_string(), start_line, start_pos, 1)
                 }
             },
             '|' => {
+                let start_line = self.line;
+                let start_pos = self.position;
                 self.read_char();
                 if self.ch == '|' {
+                    let tok = self.create_token(TokenType::Or, BLANK, self.line, start_pos, 2);
                     self.read_char();
-                    self.create_token(TokenType::Or, BLANK, 2)
+                    tok
                 } else {
-                    self.create_token(TokenType::Error, "unexpected character, expected |".to_string(), 1)
+                    self.create_token(TokenType::Error, "unexpected character, expected |".to_string(), start_line, start_pos, 1)
                 }
             },
             '=' => {
+                let start_line = self.line;
+                let start_pos = self.position;
                 self.read_char();
                 if self.ch == '=' {
+                    let tok = self.create_token(TokenType::Equal, BLANK, self.line, start_pos, 2);
                     self.read_char();
-                    self.create_token(TokenType::Equal, BLANK, 2)
+                    tok
                 } else {
-                    self.create_token(TokenType::Assign, BLANK, 1)
+                    self.create_token(TokenType::Assign, BLANK, start_line, start_pos, 1)
                 }
             },
             '<' => {
+                let start_line = self.line;
+                let start_pos = self.position;
                 self.read_char();
                 if self.ch == '=' {
+                    let tok = self.create_token(TokenType::LessThanEqual, BLANK, self.line, start_pos, 2);
                     self.read_char();
-                    self.create_token(TokenType::LessThanEqual, BLANK, 2)
+                    tok
                 } else {
-                    self.create_token(TokenType::LessThan, BLANK, 1)
+                    self.create_token(TokenType::LessThan, BLANK, start_line, start_pos, 1)
                 }
             },
             '>' => {
+                let start_line = self.line;
+                let start_pos = self.position;
                 self.read_char();
                 if self.ch == '=' {
+                    let tok = self.create_token(TokenType::GreaterThanEqual, BLANK, self.line, start_pos, 2);
                     self.read_char();
-                    self.create_token(TokenType::GreaterThanEqual, BLANK, 2)
+                    tok
                 } else {
-                    self.create_token(TokenType::GreaterThan, BLANK, 1)
+                    self.create_token(TokenType::GreaterThan, BLANK, start_line, start_pos, 1)
                 }
             },
             ':' => {
+                let tok = self.create_token(TokenType::Colon, BLANK, self.line, self.position, 1);
                 self.read_char();
-                self.create_token(TokenType::Colon, BLANK, 1)
+                tok
             },
             '?' => {
+                let tok = self.create_token(TokenType::QuestionMark, BLANK, self.line, self.position, 1);
                 self.read_char();
-                self.create_token(TokenType::QuestionMark, BLANK, 1)
+                tok
             },
             ',' => {
+                let tok = self.create_token(TokenType::Comma, BLANK, self.line, self.position, 1);
                 self.read_char();
-                self.create_token(TokenType::Comma, BLANK, 1)
+                tok
             }
-            '\0' => self.create_token(TokenType::EOF, BLANK, 1),
+            '\0' => self.create_token(TokenType::EOF, BLANK, self.line, self.position, 1),
             _ => {
                 if self.ch.is_alphabetic() || self.ch == '_' {
                     self.read_identifier()
                 } else if self.ch.is_numeric() {
+                    let start_line = self.line;
+                    let start_pos = self.position;
                     let numb = self.read_number();
                     let numb_len = numb.len();
-                    self.create_token(TokenType::Int, numb, numb_len)
+                    self.create_token(TokenType::Int, numb, start_line, start_pos, numb_len)
                 } else {
-                    self.create_token(TokenType::Error, "unexpected character".to_string(), 1)
+                    self.create_token(TokenType::Error, "unexpected character".to_string(), self.line, self.position, 1)
                 }
             }
         };
@@ -252,6 +294,7 @@ impl Lexer {
     }
 
     fn read_identifier(&mut self) -> Token {
+        let start_line = self.line;
         let position = self.position;
         while self.ch.is_alphabetic() || self.ch == '_' {
             self.read_char();
@@ -270,7 +313,7 @@ impl Lexer {
 
         let literal_len = literal.len();
 
-        self.create_token(kind, literal, literal_len)
+        self.create_token(kind, literal, start_line, position, literal_len)
     }
 
     fn read_number(&mut self) -> String {
@@ -285,6 +328,32 @@ impl Lexer {
     fn skip_whitespace(&mut self) {
         while self.ch.is_whitespace() {
             self.read_char();
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_next_token() {
+        let input = String::from("let x: int = 5;");
+        let mut l = Lexer::new(input);
+        let tests = vec![
+            Token { kind: TokenType::Keyword, literal: String::from("let"), line: 0, pos: 0, length: 3 },
+            Token { kind: TokenType::Identifier, literal: String::from("x"), line: 0, pos: 4, length: 1 },
+            Token { kind: TokenType::Colon, literal: String::from(""), line: 0, pos: 5, length: 1 },
+            Token { kind: TokenType::Keyword, literal: String::from("int"), line: 0, pos: 7, length: 3 },
+            Token { kind: TokenType::Assign, literal: String::from(""), line: 0, pos: 11, length: 1 },
+            Token { kind: TokenType::Int, literal: String::from("5"), line: 0, pos: 13, length: 1 },
+            Token { kind: TokenType::SemiColon, literal: String::from(""), line: 0, pos: 14, length: 1 },
+            Token { kind: TokenType::EOF, literal: String::from(""), line: 0, pos: 15, length: 1 },
+        ];
+
+        for test in tests {
+            let tok = l.next_token();
+            assert_eq!(tok, test);
         }
     }
 }

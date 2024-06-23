@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
     ReturnStatement(ReturnStatement),
     ExpressionStatement(ExpressionStatement),
@@ -14,30 +14,30 @@ pub enum Statement {
     Empty,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ReturnStatement {
     pub return_value: Box<Expression>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone,PartialEq )]
 pub struct ExpressionStatement {
     pub expression: Box<Expression>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct IfStatement {
     pub condition: Box<Expression>,
     pub consequence: Box<Statement>,
     pub alternative: Option<Box<Statement>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct WhileStatement {
     pub condition: Box<Expression>,
     pub body: Box<Statement>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FunctionDeclaration {
     pub function_name: String,
     pub params: Vec<FunctionArg>,
@@ -45,25 +45,26 @@ pub struct FunctionDeclaration {
     pub return_type: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FunctionArg {
     pub kind: String,
     pub ident: Identifier,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct VariableDeclaration {
     pub kind: String, // just int rn
     pub ident: Identifier,
     pub expr: Box<Expression>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CompoundStatement {
     pub statements: Vec<Box<Statement>>,
 }
 
-#[derive(Debug, Clone)]
+// allow debug clone and equal (compare? wtv its called)
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     Literal(Literal),
     Identifier(Identifier),
@@ -74,18 +75,18 @@ pub enum Expression {
     FunctionCall(String, Vec<Box<Expression>>),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Literal {
     Int(i32),
     Bool(bool),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Identifier {
     pub value: String,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BinOp {
     Add,
     Subtract,
@@ -101,7 +102,7 @@ pub enum BinOp {
     GreaterThanEqual,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum UnaryOp {
     BitwiseComplement,
     LogicalNegation,
