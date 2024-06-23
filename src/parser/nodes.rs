@@ -107,6 +107,7 @@ pub enum UnaryOp {
     BitwiseComplement,
     LogicalNegation,
     Negation,
+    Reference,
 }
 
 // TODO: improve line stuff for errors

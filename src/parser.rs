@@ -477,9 +477,9 @@ impl Parser {
 
     fn parse_term(&mut self) -> Box<nodes::Expression> {
         let mut node = self.parse_factor();
-        while self.cur_token.kind == lexer::TokenType::Multiply || self.cur_token.kind == lexer::TokenType::Divide {
+        while self.cur_token.kind == lexer::TokenType::Star || self.cur_token.kind == lexer::TokenType::Divide {
             let op = match self.cur_token.kind {
-                lexer::TokenType::Multiply => nodes::BinOp::Multiply,
+                lexer::TokenType::Star => nodes::BinOp::Multiply,
                 lexer::TokenType::Divide => nodes::BinOp::Divide,
                 _ => {
                     self.error(format!("Unexpected token, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
@@ -528,6 +528,11 @@ impl Parser {
                 self.next_token();
                 node
             },
+            lexer::TokenType::Pointer => {
+                self.next_token();
+                let right = self.parse_factor();
+                Box::new(nodes::Expression::UnaryOp(nodes::UnaryOp::Reference, right))
+            }
             _ => {
                 self.error(format!("Unexpected token, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
                 panic!();

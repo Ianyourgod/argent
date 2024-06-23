@@ -586,13 +586,26 @@ impl CodeGen {
     }
 
     fn generate_unary_op(&mut self, op: &parser::nodes::UnaryOp, expr: &Box<parser::nodes::Expression>, context: &mut Context) -> String {
-        let expr = self.generate_expression(expr, context);
-
         match *op {
-            parser::nodes::UnaryOp::BitwiseComplement => format!("{}\tnegq %rax\n", expr),
-            parser::nodes::UnaryOp::LogicalNegation => format!("{}\tcmpq $0, %rax\n\tmovq $0, %rax\n\tsete %al\n", expr), // mov command is used as xor will set flags
-            parser::nodes::UnaryOp::Negation => format!("{}\tnegq %rax\n", expr),
+            parser::nodes::UnaryOp::BitwiseComplement => {
+                let expr = self.generate_expression(expr, context);
+                format!("{}\tnegq %rax\n", expr)
+            },
+            parser::nodes::UnaryOp::LogicalNegation => {
+                let expr = self.generate_expression(expr, context);
+                format!("{}\tcmpq $0, %rax\n\tmovq $0, %rax\n\tsete %al\n", expr) // mov command is used as xor will set flags
+            }, 
+            parser::nodes::UnaryOp::Negation => {
+                let expr = self.generate_expression(expr, context);
+                format!("{}\tnegq %rax\n", expr)
+            },
+            parser::nodes::UnaryOp::Reference => self.generate_reference(expr, context),
         }
+    }
+
+    #[allow(unused_variables)]
+    fn generate_reference(&self, expr: &Box<parser::nodes::Expression>, context: &Context) -> String {
+        String::new()
     }
 
     fn generate_literal(&self, lit: &parser::nodes::Literal) -> String {

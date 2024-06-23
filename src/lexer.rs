@@ -11,7 +11,7 @@ pub enum TokenType {
     Int,
     Add,
     Subtract,
-    Multiply,
+    Star,
     Divide,
     SemiColon,
     EOF,
@@ -35,6 +35,7 @@ pub enum TokenType {
     QuestionMark,
     Comma,
     Arrow,
+    Pointer,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -145,7 +146,7 @@ impl Lexer {
                     self.read_char();
                     tok
                 } else {
-                    self.create_token(TokenType::Multiply, BLANK, start_line, start_pos, 1)
+                    self.create_token(TokenType::Star, BLANK, start_line, start_pos, 1)
                 }
             },
             '/' => {
@@ -191,7 +192,7 @@ impl Lexer {
                     self.read_char();
                     tok
                 } else {
-                    self.create_token(TokenType::Error, "unexpected character, expected &".to_string(), start_line, start_pos, 1)
+                    self.create_token(TokenType::Pointer, BLANK, start_line, start_pos, 1)
                 }
             },
             '|' => {
