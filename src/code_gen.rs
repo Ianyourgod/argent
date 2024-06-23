@@ -60,7 +60,16 @@ impl CodeGen {
         let mut context = Context::new();
 
         for stmt in self.program.statements.clone() { // clone to avoid borrowing issues
-            code.push_str(&(self.generate_statement(&stmt, &mut context)));
+            match *stmt {
+                parser::nodes::Statement::FunctionDeclaration(ref func_decl) => {
+                    code.push_str(&(self.generate_function_declaration(func_decl, &mut context)));
+                },
+                parser::nodes::Statement::Empty => (),
+                _ => {
+                    panic!("unexpected statement outside of function declaration");
+                }
+            }
+            
         }
 
         code
@@ -104,7 +113,7 @@ impl CodeGen {
             parser::nodes::Statement::WhileStatement(ref while_stmt) => self.generate_while_statement(while_stmt, context),
             parser::nodes::Statement::BreakStatement => self.generate_break_statement(context),
             parser::nodes::Statement::ContinueStatement => self.generate_continue_statement(context),
-            parser::nodes::Statement::FunctionDeclaration(ref func_decl) =>self.generate_function_declaration(func_decl, &mut context.functions), // doesnt currently need context
+            parser::nodes::Statement::FunctionDeclaration(ref func_decl) => self.generate_function_declaration(func_decl, context), // doesnt currently need context
             parser::nodes::Statement::VariableDeclaration(ref var_decl) => self.generate_variable_declaration(var_decl, context),
             parser::nodes::Statement::Compound(ref block_stmt) => self.generate_block_statement(block_stmt, context),
             parser::nodes::Statement::Empty => String::new(),
@@ -217,7 +226,7 @@ impl CodeGen {
         format!("\tjmp .L{}\n", context.loop_start.unwrap())
     }
 
-    fn generate_function_declaration(&mut self, stmt: &parser::nodes::FunctionDeclaration, functions: &mut HashMap<String, Function>) -> String {
+    fn generate_function_declaration(&mut self, stmt: &parser::nodes::FunctionDeclaration, context: &mut Context) -> String {
         /*/
          * .globl {function_name}
          * {function_name}:
@@ -231,11 +240,11 @@ impl CodeGen {
          * ret
          */
 
-        if functions.contains_key(&stmt.function_name) {
+        if context.functions.contains_key(&stmt.function_name) {
             panic!("function {} already declared", stmt.function_name);
         }
 
-        functions.insert(
+        context.functions.insert(
             stmt.function_name.clone(),
             Function {
                 name: stmt.function_name.clone(),
@@ -243,8 +252,7 @@ impl CodeGen {
             }
         );
     
-        let mut context = Context::new();
-        context.functions = functions.clone();
+        let mut new_context = context.clone();
 
         // args
 
@@ -256,19 +264,19 @@ impl CodeGen {
 
         for arg in &stmt.params {
             if arg_count < 6 {
-                context.var_map.hashmap.insert(arg.ident.value.clone(), context.var_map.stack_index);
-                code.push_str(&format!("\tmovq {}, {}(%rbp)\n", arg_regs[arg_count], context.var_map.stack_index));
-                context.var_map.stack_index -= 8;
+                new_context.var_map.hashmap.insert(arg.ident.value.clone(), new_context.var_map.stack_index);
+                code.push_str(&format!("\tmovq {}, {}(%rbp)\n", arg_regs[arg_count], new_context.var_map.stack_index));
+                new_context.var_map.stack_index -= 8;
                 arg_count += 1;
             } else {
-                context.var_map.stack_index -= 8;
-                context.var_map.hashmap.insert(arg.ident.value.clone(), stack_index + 24); // +24 because of the return address and base pointer and the stack grows downwards
+                new_context.var_map.stack_index -= 8;
+                new_context.var_map.hashmap.insert(arg.ident.value.clone(), stack_index + 24); // +24 because of the return address and base pointer and the stack grows downwards
             }
         }
 
-        context.current_scope = context.var_map.clone();
+        new_context.current_scope = new_context.var_map.clone();
 
-        code.push_str(&self.generate_statement(&stmt.body, &mut context));
+        code.push_str(&self.generate_statement(&stmt.body, &mut new_context));
 
         code.push_str("\tmov %rbp, %rsp\n\tpop %rbp\n\tmovq $0, %rax\n\tret\n");
 
