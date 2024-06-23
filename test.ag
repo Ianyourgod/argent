@@ -1,4 +1,3 @@
 fn main(argc: int) -> int {
-    let abc: int = argc * 2;
-    return abc;
-}
+        return argc
+    }

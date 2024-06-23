@@ -61,7 +61,7 @@ pub struct Lexer {
     position: usize,
     read_position: usize,
     line: usize,
-    pos: usize,
+    line_pos: usize,
     ch: char,
 }
 
@@ -73,7 +73,7 @@ impl Lexer {
             position: 0,
             read_position: 0,
             line: 0,
-            pos: 0,
+            line_pos: 0,
             ch: '\0',
         };
         l.read_char();
@@ -89,28 +89,28 @@ impl Lexer {
         const BLANK: String = String::new();
         let tok = match self.ch {
             '(' => {
-                let tok = self.create_token(TokenType::LParen, BLANK, self.line, self.position, 1);
+                let tok = self.create_token(TokenType::LParen, BLANK, self.line, self.line_pos, 1);
                 self.read_char();
                 tok  
             },
             ')' => {
-                let tok = self.create_token(TokenType::RParen, BLANK, self.line, self.position, 1);
+                let tok = self.create_token(TokenType::RParen, BLANK, self.line, self.line_pos, 1);
                 self.read_char();
                 tok
             },
             '{' => {
-                let tok = self.create_token(TokenType::LBrace, BLANK, self.line, self.position, 1);
+                let tok = self.create_token(TokenType::LBrace, BLANK, self.line, self.line_pos, 1);
                 self.read_char();
                 tok
             },
             '}' => {
-                let tok = self.create_token(TokenType::RBrace, BLANK, self.line, self.position, 1);
+                let tok = self.create_token(TokenType::RBrace, BLANK, self.line, self.line_pos, 1);
                 self.read_char();
                 tok
             },
             '+' => {
                 let start_line = self.line;
-                let start_pos = self.position;
+                let start_pos = self.line_pos;
                 self.read_char();
                 if self.ch == '=' {
                     let tok = self.create_token(TokenType::AddAssign, BLANK, self.line, start_pos, 2);
@@ -122,7 +122,7 @@ impl Lexer {
             },
             '-' => {
                 let start_line = self.line;
-                let start_pos = self.position;
+                let start_pos = self.line_pos;
                 self.read_char();
                 if self.ch == '=' {
                     let tok = self.create_token(TokenType::SubtractAssign, BLANK, self.line, start_pos, 2);
@@ -138,7 +138,7 @@ impl Lexer {
             },
             '*' => {
                 let start_line = self.line;
-                let start_pos = self.position;
+                let start_pos = self.line_pos;
                 self.read_char();
                 if self.ch == '=' {
                     let tok = self.create_token(TokenType::MultiplyAssign, BLANK, self.line, start_pos, 2);
@@ -150,7 +150,7 @@ impl Lexer {
             },
             '/' => {
                 let start_line = self.line;
-                let start_pos = self.position;
+                let start_pos = self.line_pos;
                 self.read_char();
                 if self.ch == '=' {
                     let tok = self.create_token(TokenType::DivideAssign, BLANK, self.line, start_pos, 2);
@@ -161,18 +161,18 @@ impl Lexer {
                 }
             },
             ';' => {
-                let tok = self.create_token(TokenType::SemiColon, BLANK, self.line, self.position, 1);
+                let tok = self.create_token(TokenType::SemiColon, BLANK, self.line, self.line_pos, 1);
                 self.read_char();
                 tok
             },
             '~' => {
-                let tok = self.create_token(TokenType::BitwiseComplement, BLANK, self.line, self.position, 1);
+                let tok = self.create_token(TokenType::BitwiseComplement, BLANK, self.line, self.line_pos, 1);
                 self.read_char();
                 tok
             },
             '!' => {
                 let start_line = self.line;
-                let start_pos = self.position;
+                let start_pos = self.line_pos;
                 self.read_char();
                 if self.ch == '=' {
                     let tok = self.create_token(TokenType::NotEqual, BLANK, self.line, start_pos, 2);
@@ -184,7 +184,7 @@ impl Lexer {
             },
             '&' => {
                 let start_line = self.line;
-                let start_pos = self.position;
+                let start_pos = self.line_pos;
                 self.read_char();
                 if self.ch == '&' {
                     let tok = self.create_token(TokenType::And, BLANK, self.line, start_pos, 2);
@@ -196,7 +196,7 @@ impl Lexer {
             },
             '|' => {
                 let start_line = self.line;
-                let start_pos = self.position;
+                let start_pos = self.line_pos;
                 self.read_char();
                 if self.ch == '|' {
                     let tok = self.create_token(TokenType::Or, BLANK, self.line, start_pos, 2);
@@ -208,7 +208,7 @@ impl Lexer {
             },
             '=' => {
                 let start_line = self.line;
-                let start_pos = self.position;
+                let start_pos = self.line_pos;
                 self.read_char();
                 if self.ch == '=' {
                     let tok = self.create_token(TokenType::Equal, BLANK, self.line, start_pos, 2);
@@ -220,7 +220,7 @@ impl Lexer {
             },
             '<' => {
                 let start_line = self.line;
-                let start_pos = self.position;
+                let start_pos = self.line_pos;
                 self.read_char();
                 if self.ch == '=' {
                     let tok = self.create_token(TokenType::LessThanEqual, BLANK, self.line, start_pos, 2);
@@ -232,7 +232,7 @@ impl Lexer {
             },
             '>' => {
                 let start_line = self.line;
-                let start_pos = self.position;
+                let start_pos = self.line_pos;
                 self.read_char();
                 if self.ch == '=' {
                     let tok = self.create_token(TokenType::GreaterThanEqual, BLANK, self.line, start_pos, 2);
@@ -243,32 +243,32 @@ impl Lexer {
                 }
             },
             ':' => {
-                let tok = self.create_token(TokenType::Colon, BLANK, self.line, self.position, 1);
+                let tok = self.create_token(TokenType::Colon, BLANK, self.line, self.line_pos, 1);
                 self.read_char();
                 tok
             },
             '?' => {
-                let tok = self.create_token(TokenType::QuestionMark, BLANK, self.line, self.position, 1);
+                let tok = self.create_token(TokenType::QuestionMark, BLANK, self.line, self.line_pos, 1);
                 self.read_char();
                 tok
             },
             ',' => {
-                let tok = self.create_token(TokenType::Comma, BLANK, self.line, self.position, 1);
+                let tok = self.create_token(TokenType::Comma, BLANK, self.line, self.line_pos, 1);
                 self.read_char();
                 tok
             }
-            '\0' => self.create_token(TokenType::EOF, BLANK, self.line, self.position, 1),
+            '\0' => self.create_token(TokenType::EOF, BLANK, self.line, self.line_pos, 1),
             _ => {
                 if self.ch.is_alphabetic() || self.ch == '_' {
                     self.read_identifier()
                 } else if self.ch.is_numeric() {
                     let start_line = self.line;
-                    let start_pos = self.position;
+                    let start_pos = self.line_pos;
                     let numb = self.read_number();
                     let numb_len = numb.len();
                     self.create_token(TokenType::Int, numb, start_line, start_pos, numb_len)
                 } else {
-                    self.create_token(TokenType::Error, "unexpected character".to_string(), self.line, self.position, 1)
+                    self.create_token(TokenType::Error, "unexpected character".to_string(), self.line, self.line_pos, 1)
                 }
             }
         };
@@ -284,9 +284,9 @@ impl Lexer {
 
         if self.ch == '\n' {
             self.line += 1;
-            self.pos = 0;
+            self.line_pos = 0;
         } else {
-            self.pos += 1;
+            self.line_pos += 1;
         }
 
         self.position = self.read_position;
@@ -295,12 +295,13 @@ impl Lexer {
 
     fn read_identifier(&mut self) -> Token {
         let start_line = self.line;
+        let start_pos = self.line_pos;
         let position = self.position;
         while self.ch.is_alphabetic() || self.ch == '_' {
             self.read_char();
         }
 
-        let keywords = vec!["fn", "let", "int", "return", "if", "else", "while", "break", "continue"];
+        let keywords = vec!["fn", "let", "return", "if", "else", "while", "break", "continue"];
         // todo: remove int from keywords and improve the type system
 
         let literal = self.input[position..self.position].to_string();
@@ -313,7 +314,7 @@ impl Lexer {
 
         let literal_len = literal.len();
 
-        self.create_token(kind, literal, start_line, position, literal_len)
+        self.create_token(kind, literal, start_line, start_pos, literal_len)
     }
 
     fn read_number(&mut self) -> String {

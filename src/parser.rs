@@ -22,19 +22,32 @@ impl Parser {
 
     fn error(&mut self, error_message: String, line: usize, position: usize, length: usize, error_code: Option<i32>) {
         let lines = self.lexer.input.split('\n').collect::<Vec<&str>>();
-        let error_text = lines[line].trim_start();
 
-        let diff = lines[line].len() - error_text.len();
+        let error_line = lines[line];
+        let trimmed_line = error_line.trim_start();
+        let top_line = if line > 0 {
+            lines[line - 1]
+        } else {
+            ""
+        };
+
+        let split = top_line.split_at(error_line.len()-trimmed_line.len());
+        let mut error_text = split.1.to_string();
+
+        error_text.push_str("\n");
+        error_text.push_str(trimmed_line);
+
+        let diff = error_line.len() - error_line.trim_start().len();
 
         let mut arrows = String::new();
-        for _ in 0..(position + 1 - diff - length) {
+        for _ in 0..(position - diff - 1) {
             arrows.push_str(" ");
         }
         for _ in position..(position+length) {
             arrows.push_str("^")
         }
 
-        let position = format!("--> {}:{}", line+1, position+1);
+        let position = format!("--> {}:{}", line + 1, position);
         
         println!("{}\n{}\n{}\n{}",
             error_message,
@@ -109,20 +122,20 @@ impl Parser {
         self.next_token();
 
         if self.cur_token.kind != lexer::TokenType::Identifier {
-            self.error("unexpected token".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+            self.error(format!("Expected identifier, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
         }
         let ident = self.cur_token.literal.clone();
 
         self.next_token();
 
         if self.cur_token.kind != lexer::TokenType::Colon {
-            self.error(format!("unexpected token, expected colon found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+            self.error(format!("Expected colon, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
         }
 
         self.next_token();
 
-        if self.cur_token.kind != lexer::TokenType::Keyword || self.cur_token.literal != "int" {
-            self.error(format!("unexpected token, expected int found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+        if self.cur_token.kind != lexer::TokenType::Identifier && self.cur_token.literal != "int" {
+            self.error(format!("Expected identifier, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
         }
 
         let kind = self.cur_token.literal.clone();
@@ -237,8 +250,8 @@ impl Parser {
 
                 self.next_token();
 
-                if self.cur_token.kind != lexer::TokenType::Keyword || self.cur_token.literal != "int" {
-                    self.error(format!("Expected int, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+                if self.cur_token.kind != lexer::TokenType::Identifier || self.cur_token.literal != "int" {
+                    self.error(format!("Expected type, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
                 }
 
                 let kind = self.cur_token.literal.clone();
@@ -267,7 +280,7 @@ impl Parser {
 
         self.next_token();
 
-        if self.cur_token.kind != lexer::TokenType::Keyword || self.cur_token.literal != "int" {
+        if self.cur_token.kind != lexer::TokenType::Identifier || self.cur_token.literal != "int" {
             self.error(format!("expected int, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
         }
 

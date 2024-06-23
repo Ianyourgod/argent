@@ -8,9 +8,9 @@ mod code_gen;
 fn help(err_code: i32) {
     println!(
 "Usage: 
-    ./compiler run <filename> - to run the file
-    ./compiler compile <filename> - to compile the file
-    ./compiler help - to show this message");
+    argent run <filename> - to run the file
+    argent build <filename> - to compile the file
+    argent help - to show this message");
     std::process::exit(err_code);
 }
 
@@ -88,7 +88,7 @@ fn main() {
                     }
                 }
             },
-            "compile" => {
+            "build" => {
                 let op_filename = std::env::args().nth(2);
                 if op_filename.is_none() {
                     help(2);
