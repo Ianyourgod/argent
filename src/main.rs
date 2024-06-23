@@ -1,5 +1,5 @@
 use nix::unistd::execvp;
-use std::ffi::{CStr, CString};
+use std::{ffi::{CStr, CString}, process::exit};
 
 mod parser;
 mod lexer;
@@ -14,9 +14,13 @@ fn help(err_code: i32) {
     std::process::exit(err_code);
 }
 
-fn compile_program(input: String, outfile_name: &String, include_output: bool) {
+fn compile_program(input: String, input_name: String, outfile_name: &String, include_output: bool) {
     let l = lexer::Lexer::new(input.clone());
     let mut p = parser::Parser::new(l);
+
+    p.input_name = input_name;
+    p.error_func = Some(error);
+
     let program = p.parse_program();
 
     let mut compiler = code_gen::CodeGen::new(program, Some(input));
@@ -46,6 +50,49 @@ fn compile_program(input: String, outfile_name: &String, include_output: bool) {
     }
 }
 
+fn error(filename: String, input: String, error_message: String, line: usize, position: usize, length: usize, error_code: Option<i32>) {
+    let lines = input.split('\n').collect::<Vec<&str>>();
+
+    let error_line = lines[line];
+    let trimmed_line = error_line.trim_start();
+    let top_line = if line > 0 {
+        lines[line - 1]
+    } else {
+        ""
+    };
+
+    let split = top_line.split_at(error_line.len()-trimmed_line.len());
+    let mut error_text = split.1.to_string();
+
+    error_text.push_str("\n");
+    error_text.push_str(trimmed_line);
+
+    let diff = error_line.len() - error_line.trim_start().len();
+
+    let mut arrows = String::new();
+    for _ in 0..(position - diff - 1) {
+        arrows.push_str(" ");
+    }
+    for _ in position..(position+length) {
+        arrows.push_str("^")
+    }
+
+    let position = format!("--> {}:{}:{}", filename, line + 1, position);
+    
+    println!("{}\n{}\n{}\n{}",
+        error_message,
+        position,
+        error_text,
+        arrows
+    );
+
+    let code = if error_code.is_some() {
+        error_code.unwrap()
+    } else { 1 };
+
+    exit(code);
+}
+
 fn main() {
     // check if there is a file to read from in cmd args
 
@@ -63,6 +110,7 @@ fn main() {
                 }
 
                 let filename = op_filename.unwrap();
+                let copied_filename = filename.clone();
 
                 let outfile_name = "output/".to_string() + &filename.split('.').collect::<Vec<&str>>()[0].to_string();
                 let op_input = std::fs::read_to_string(filename);
@@ -74,10 +122,9 @@ fn main() {
 
                 let input = op_input.unwrap();
 
-                compile_program(input, &outfile_name, true);
+                compile_program(input, copied_filename, &outfile_name, true);
 
                 let outfile_name_cstr = CString::new(outfile_name).expect("CString::new failed");
-
                 let err = execvp::<&CStr>(&outfile_name_cstr, &[]);
 
                 match err {
@@ -96,6 +143,7 @@ fn main() {
                 }
 
                 let filename = op_filename.unwrap();
+                let copied_filename = filename.clone();
 
                 let outfile_name = "output/".to_string() + &filename.split('.').collect::<Vec<&str>>()[0].to_string();
                 let op_input = std::fs::read_to_string(filename);
@@ -107,7 +155,7 @@ fn main() {
 
                 let input = op_input.unwrap();
 
-                compile_program(input, &outfile_name, true);
+                compile_program(input, copied_filename, &outfile_name, true);
             },
             _ => {
                 help(2);

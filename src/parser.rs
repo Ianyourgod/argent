@@ -7,6 +7,8 @@ pub struct Parser {
     lexer: lexer::Lexer,
     cur_token: lexer::Token,
     peek_token: lexer::Token,
+    pub input_name: String,
+    pub error_func: Option<fn(String, String, String, usize, usize, usize, Option<i32>)>,
 }
 
 impl Parser {
@@ -17,10 +19,17 @@ impl Parser {
             lexer,
             cur_token,
             peek_token,
+            input_name: String::new(),
+            error_func: None,
         }
     }
 
     fn error(&mut self, error_message: String, line: usize, position: usize, length: usize, error_code: Option<i32>) {
+        if self.error_func.is_some() {
+            self.error_func.unwrap()(self.input_name.clone(), self.lexer.input.clone(), error_message, line, position, length, error_code);
+            return;
+        }
+        
         let lines = self.lexer.input.split('\n').collect::<Vec<&str>>();
 
         let error_line = lines[line];
