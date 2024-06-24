@@ -353,15 +353,6 @@ impl Parser {
 
     fn get_precidence(&self, token: &lexer::TokenType) -> i8 {
         match token {
-            lexer::TokenType::Assign => 1,
-            lexer::TokenType::AddAssign => 1,
-            lexer::TokenType::SubtractAssign => 1,
-            lexer::TokenType::MultiplyAssign => 1,
-            lexer::TokenType::DivideAssign => 1,
-            lexer::TokenType::Or => 2,
-            lexer::TokenType::And => 3,
-            lexer::TokenType::Equal | lexer::TokenType::NotEqual => 4,
-            lexer::TokenType::LessThan | lexer::TokenType::LessThanEqual | lexer::TokenType::GreaterThan | lexer::TokenType::GreaterThanEqual => 5,
             lexer::TokenType::Add | lexer::TokenType::Subtract => 6,
             lexer::TokenType::Star | lexer::TokenType::Divide => 7,
             lexer::TokenType::LParen => 8,

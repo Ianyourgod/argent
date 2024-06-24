@@ -42,9 +42,9 @@ impl Pass {
         match statement {
             tacky::nodes::Instruction::Return(return_statement) => {
                 let return_value = self.emit_value(&return_statement.return_value);
-                instructions.push(nodes::Instruction::Mov(nodes::Mov {
+                instructions.push(nodes::Instruction::Mov(nodes::BinOp {
                     src: return_value,
-                    dest: nodes::Operand::Register(nodes::Reg::Eax),
+                    dest: nodes::Operand::Register(nodes::Reg::AX),
                     suffix: Some(LONG.to_string()),
                 }));
                 instructions.push(nodes::Instruction::Ret);
@@ -54,13 +54,13 @@ impl Pass {
                     tacky::nodes::UnaryOperator::Negate => {
                         let src = self.emit_value(&unary.src);
                         let dest = self.emit_value(&unary.dest);
-                        instructions.push(nodes::Instruction::Mov(nodes::Mov {
+                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
                             src,
                             dest: dest.clone(),
                             suffix: Some(LONG.to_string()),
                         }));
-                        instructions.push(nodes::Instruction::Neg(nodes::Neg {
-                            dest,
+                        instructions.push(nodes::Instruction::Neg(nodes::UnaryOp {
+                            operand: dest,
                             suffix: Some(LONG.to_string()),
                         }));
                     }
@@ -73,12 +73,12 @@ impl Pass {
                         let src1 = self.emit_value(&binary.src1);
                         let src2 = self.emit_value(&binary.src2);
                         let dest = self.emit_value(&binary.dest);
-                        instructions.push(nodes::Instruction::Mov(nodes::Mov {
+                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
                             src: src1,
                             dest: dest.clone(),
                             suffix: Some(LONG.to_string()),
                         }));
-                        instructions.push(nodes::Instruction::Add(nodes::Add {
+                        instructions.push(nodes::Instruction::Add(nodes::BinOp {
                             src: src2,
                             dest,
                             suffix: Some(LONG.to_string()),
@@ -88,12 +88,12 @@ impl Pass {
                         let src1 = self.emit_value(&binary.src1);
                         let src2 = self.emit_value(&binary.src2);
                         let dest = self.emit_value(&binary.dest);
-                        instructions.push(nodes::Instruction::Mov(nodes::Mov {
+                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
                             src: src1,
                             dest: dest.clone(),
                             suffix: Some(LONG.to_string()),
                         }));
-                        instructions.push(nodes::Instruction::Sub(nodes::Sub {
+                        instructions.push(nodes::Instruction::Sub(nodes::BinOp {
                             src: src2,
                             dest,
                             suffix: Some(LONG.to_string()),
@@ -103,12 +103,12 @@ impl Pass {
                         let src1 = self.emit_value(&binary.src1);
                         let src2 = self.emit_value(&binary.src2);
                         let dest = self.emit_value(&binary.dest);
-                        instructions.push(nodes::Instruction::Mov(nodes::Mov {
+                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
                             src: src1,
                             dest: dest.clone(),
                             suffix: Some(LONG.to_string()),
                         }));
-                        instructions.push(nodes::Instruction::Mul(nodes::Mul {
+                        instructions.push(nodes::Instruction::Mul(nodes::BinOp {
                             src: src2,
                             dest,
                             suffix: Some(LONG.to_string()),
@@ -118,18 +118,14 @@ impl Pass {
                         let src1 = self.emit_value(&binary.src1);
                         let src2 = self.emit_value(&binary.src2);
                         let dest = self.emit_value(&binary.dest);
-                        instructions.push(nodes::Instruction::Mov(nodes::Mov {
+                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
                             src: src1,
-                            dest: nodes::Operand::Register(nodes::Reg::Eax),
+                            dest: nodes::Operand::Register(nodes::Reg::AX),
                             suffix: Some(LONG.to_string()),
                         }));
-                        instructions.push(nodes::Instruction::Mov(nodes::Mov {
-                            src: nodes::Operand::Immediate(0),
-                            dest: nodes::Operand::Register(nodes::Reg::Edx),
-                            suffix: Some(LONG.to_string()),
-                        }));
-                        instructions.push(nodes::Instruction::Div(nodes::Div {
-                            src: src2,
+                        instructions.push(nodes::Instruction::Cdq);
+                        instructions.push(nodes::Instruction::Div(nodes::UnaryOp {
+                            operand: src2,
                             suffix: Some(LONG.to_string()),
                         }));
                     }

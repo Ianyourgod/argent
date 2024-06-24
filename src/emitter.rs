@@ -41,12 +41,22 @@ impl Emitter {
                     code_gen::nodes::Instruction::Sub(sub) => {
                         output.push_str(&format!("    sub{} {}, {}\n", if sub.suffix.is_some() {sub.suffix.clone().unwrap()} else {String::new()}, sub.src, sub.dest));
                     }
+                    code_gen::nodes::Instruction::Mul(mul) => {
+                        output.push_str(&format!("    imul{} {}, {}\n", if mul.suffix.is_some() {mul.suffix.clone().unwrap()} else {String::new()}, mul.src, mul.dest));
+                    }
+                    code_gen::nodes::Instruction::Div(div) => {
+                        output.push_str(&format!("    idiv{} {}\n", if div.suffix.is_some() {div.suffix.clone().unwrap()} else {String::new()}, div.operand));
+                    }
                     code_gen::nodes::Instruction::Neg(neg) => {
-                        output.push_str(&format!("    neg{} {}\n", if neg.suffix.is_some() {neg.suffix.clone().unwrap()} else {String::new()}, neg.dest));
+                        output.push_str(&format!("    neg{} {}\n", if neg.suffix.is_some() {neg.suffix.clone().unwrap()} else {String::new()}, neg.operand));
+                    }
+                    code_gen::nodes::Instruction::Cdq => {
+                        output.push_str("    cdq\n");
                     }
                     code_gen::nodes::Instruction::AllocateStack(allocate_stack) => {
                         output.push_str(&format!("    sub ${}, %rsp\n", allocate_stack));
                     }
+                    #[allow(unreachable_patterns)]
                     _ => panic!()
                 }
             }

@@ -50,67 +50,29 @@ impl FunctionDefinition {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Instruction {
-    Mov(Mov),
+    Mov(BinOp),
     Ret,
     AllocateStack(usize),
-    Push(Push),
-    Pop(Pop),
-    Add(Add),
-    Sub(Sub),
-    Mul(Mul),
-    Div(Div),
-    Neg(Neg),
+    Push(UnaryOp),
+    Pop(UnaryOp),
+    Add(BinOp),
+    Sub(BinOp),
+    Mul(BinOp),
+    Div(UnaryOp),
+    Neg(UnaryOp),
+    Cdq,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Push {
+pub struct BinOp {
+    pub dest: Operand,
+    pub src: Operand,
+    pub suffix: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct UnaryOp {
     pub operand: Operand,
-    pub suffix: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Pop {
-    pub operand: Operand,
-    pub suffix: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Mov {
-    pub dest: Operand,
-    pub src: Operand,
-    pub suffix: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Add {
-    pub dest: Operand,
-    pub src: Operand,
-    pub suffix: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Mul {
-    pub dest: Operand,
-    pub src: Operand,
-    pub suffix: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Div {
-    pub src: Operand,
-    pub suffix: Option<String>,
-} // dest is always %eax
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Neg {
-    pub dest: Operand,
-    pub suffix: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Sub {
-    pub dest: Operand,
-    pub src: Operand,
     pub suffix: Option<String>,
 }
 
@@ -129,15 +91,24 @@ pub struct Identifier {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Reg {
-    Eax,
-    Edx,
-    R10d,
+    AX,
+    DX,
+    R10,
+    R11
 }
 
 impl std::fmt::Display for Operand {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> core::fmt::Result {
         match self {
-            Operand::Register(reg) => write!(f, "%{:#?}", reg),
+            Operand::Register(reg) => {
+                let reg = match reg {
+                    Reg::AX => "%eax",
+                    Reg::DX => "%edx",
+                    Reg::R10 => "%r10d",
+                    Reg::R11 => "%r11d",
+                };
+                write!(f, "{}", reg)
+            },
             Operand::Immediate(imm) => write!(f, "${}", imm),
             Operand::StackAllocate(idx) => write!(f, "-{}({})", idx, "%rbp"),
             Operand::Pseudo(ident) => write!(f, "%{}", ident.name),

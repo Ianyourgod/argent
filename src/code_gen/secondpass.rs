@@ -41,17 +41,17 @@ impl Pass {
                 let dest = self.emit_operand(&mov.dest, instructions, context);
                 let src = self.emit_operand(&mov.src, instructions, context);
 
-                instructions.push(nodes::Instruction::Mov(nodes::Mov {
+                instructions.push(nodes::Instruction::Mov(nodes::BinOp {
                     dest,
                     src,
                     suffix: mov.suffix.clone(),
                 }));
             },
             nodes::Instruction::Neg(ref neg) => {
-                let dest = self.emit_operand(&neg.dest, instructions, context);
+                let operand = self.emit_operand(&neg.operand, instructions, context);
 
-                instructions.push(nodes::Instruction::Neg(nodes::Neg {
-                    dest,
+                instructions.push(nodes::Instruction::Neg(nodes::UnaryOp {
+                    operand,
                     suffix: neg.suffix.clone(),
                 }));
             },
@@ -59,7 +59,7 @@ impl Pass {
                 let dest = self.emit_operand(&add.dest, instructions, context);
                 let src = self.emit_operand(&add.src, instructions, context);
 
-                instructions.push(nodes::Instruction::Add(nodes::Add {
+                instructions.push(nodes::Instruction::Add(nodes::BinOp {
                     dest,
                     src,
                     suffix: add.suffix.clone(),
@@ -69,7 +69,7 @@ impl Pass {
                 let dest = self.emit_operand(&sub.dest, instructions, context);
                 let src = self.emit_operand(&sub.src, instructions, context);
 
-                instructions.push(nodes::Instruction::Sub(nodes::Sub {
+                instructions.push(nodes::Instruction::Sub(nodes::BinOp {
                     dest,
                     src,
                     suffix: sub.suffix.clone(),
@@ -79,17 +79,17 @@ impl Pass {
                 let dest = self.emit_operand(&mul.dest, instructions, context);
                 let src = self.emit_operand(&mul.src, instructions, context);
 
-                instructions.push(nodes::Instruction::Mul(nodes::Mul {
+                instructions.push(nodes::Instruction::Mul(nodes::BinOp {
                     dest,
                     src,
                     suffix: mul.suffix.clone(),
                 }));
             },
             nodes::Instruction::Div(ref div) => {
-                let src = self.emit_operand(&div.src, instructions, context);
+                let operand = self.emit_operand(&div.operand, instructions, context);
 
-                instructions.push(nodes::Instruction::Div(nodes::Div {
-                    src,
+                instructions.push(nodes::Instruction::Div(nodes::UnaryOp {
+                    operand,
                     suffix: div.suffix.clone(),
                 }));
             },
