@@ -63,6 +63,9 @@ impl Tacky {
                 }
                 nodes::Value::Empty
             }
+            &parser::nodes::Statement::ExpressionStatement(ref expression) => {
+                nodes::Value::Empty // skip since it aint doing anything
+            }
             _ => panic!("Not implemented yet: {:?}", statement)
         }
     }

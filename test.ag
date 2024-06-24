@@ -1,3 +1,4 @@
 fn main(argc: int) -> int {
-    return (1+2)*5;
+    1+1;
+    return 5;
 }
