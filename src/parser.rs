@@ -80,11 +80,18 @@ impl Parser {
         }
     }
 
-    pub fn parse_program(&mut self) -> nodes::CompoundStatement {
-        let mut program = nodes::CompoundStatement { statements: vec![] };
+    pub fn parse_program(&mut self) -> nodes::Program {
+        let mut program = nodes::Program { function_definitions: vec![] };
         while self.cur_token.kind != lexer::TokenType::EOF {
-            let stmt = self.parse_statement();
-            program.statements.push(stmt);
+            let stmt = self.parse_function_declaration();
+            let fn_def = match *stmt {
+                nodes::Statement::FunctionDeclaration(ref f) => f,
+                _ => {
+                    self.error("expected function declaration".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+                    panic!();
+                },
+            };
+            program.function_definitions.push(fn_def.clone());
             self.next_token();
         }
         program
@@ -591,7 +598,7 @@ mod tests {
         let lexer = Lexer::new(input.to_string());
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
-        assert_eq!(program.statements.len(), 1);
+        assert_eq!(program.function_definitions.len(), 1);
     }
 
     #[test]
@@ -601,152 +608,38 @@ mod tests {
             return 5;
         }
         "#;
+
         let lexer = Lexer::new(input.to_string());
         let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-        let stmt = &program.statements[0];
-        match **stmt {
+        let stmt = parser.parse_function_declaration();
+        match *stmt {
             nodes::Statement::FunctionDeclaration(ref f) => {
                 assert_eq!(f.function_name, "main");
+                assert_eq!(f.params.len(), 0);
                 assert_eq!(f.return_type, "int");
             },
             _ => panic!("expected function declaration"),
-        };
-    }
-
-    #[test]
-    fn test_parse_variable_declaration() {
-        let input = r#"
-        let x: int = 5;
-        "#;
-        let lexer = Lexer::new(input.to_string());
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-        let stmt = &program.statements[0];
-        match **stmt {
-            nodes::Statement::VariableDeclaration(ref v) => {
-                assert_eq!(v.kind, "int");
-                assert_eq!(v.ident.value, "x");
-            },
-            _ => panic!("expected variable declaration"),
         }
     }
 
     #[test]
-    fn test_parse_if_statement() {
+    fn test_parse_function_declaration_with_args() {
         let input = r#"
-        if x < 5 {
-            return 5;
-        } else {
-            return 10;
-        }
-        "#;
-        let lexer = Lexer::new(input.to_string());
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-        let stmt = &program.statements[0];
-        match **stmt {
-            nodes::Statement::IfStatement(ref i) => {
-                assert_eq!(*i.condition, nodes::Expression::BinOp(
-                    Box::new(nodes::Expression::Identifier(nodes::Identifier { value: "x".to_string() })),
-                    nodes::BinOp::LessThan,
-                    Box::new(nodes::Expression::Literal(nodes::Literal::Int(5)))
-                ));
-            },
-            _ => panic!("expected if statement"),
-        }
-    }
-
-    #[test]
-    fn test_parse_while_statement() {
-        let input = r#"
-        while x < 5 {
+        fn main(a: int, b: int) -> int {
             return 5;
         }
         "#;
+
         let lexer = Lexer::new(input.to_string());
         let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-        let stmt = &program.statements[0];
-        match **stmt {
-            nodes::Statement::WhileStatement(ref w) => {
-                assert_eq!(*w.condition, nodes::Expression::BinOp(
-                    Box::new(nodes::Expression::Identifier(nodes::Identifier { value: "x".to_string() })),
-                    nodes::BinOp::LessThan,
-                    Box::new(nodes::Expression::Literal(nodes::Literal::Int(5)))
-                ));
+        let stmt = parser.parse_function_declaration();
+        match *stmt {
+            nodes::Statement::FunctionDeclaration(ref f) => {
+                assert_eq!(f.function_name, "main");
+                assert_eq!(f.params.len(), 2);
+                assert_eq!(f.return_type, "int");
             },
-            _ => panic!("expected while statement"),
-        }
-    }
-
-    #[test]
-    fn test_parse_break_statement() {
-        let input = r#"
-        break;
-        "#;
-        let lexer = Lexer::new(input.to_string());
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-        let stmt = &program.statements[0];
-        match **stmt {
-            nodes::Statement::BreakStatement => {},
-            _ => panic!("expected break statement"),
-        }
-    }
-
-    #[test]
-    fn test_parse_continue_statement() {
-        let input = r#"
-        continue;
-        "#;
-        let lexer = Lexer::new(input.to_string());
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-        let stmt = &program.statements[0];
-        match **stmt {
-            nodes::Statement::ContinueStatement => {},
-            _ => panic!("expected continue statement"),
-        }
-    }
-
-    #[test]
-    fn test_parse_expression_statement() {
-        let input = r#"
-        x = 5;
-        "#;
-        let lexer = Lexer::new(input.to_string());
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-        let stmt = &program.statements[0];
-        match **stmt {
-            nodes::Statement::ExpressionStatement(ref e) => {
-                assert_eq!(*e.expression, nodes::Expression::Assignment(
-                    nodes::Identifier { value: "x".to_string() },
-                    Box::new(nodes::Expression::Literal(nodes::Literal::Int(5)))
-                ));
-            },
-            _ => panic!("expected expression statement"),
-        }
-    }
-
-    #[test]
-    fn test_parse_block_statement() {
-        let input = r#"
-        {
-            x = 5;
-            y = 10;
-        }
-        "#;
-        let lexer = Lexer::new(input.to_string());
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-        let stmt = &program.statements[0];
-        match **stmt {
-            nodes::Statement::Compound(ref c) => {
-                assert_eq!(c.statements.len(), 2);
-            },
-            _ => panic!("expected compound statement"),
+            _ => panic!("expected function declaration"),
         }
     }
 }

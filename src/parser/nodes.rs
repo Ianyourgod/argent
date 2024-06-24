@@ -1,6 +1,11 @@
 #![allow(dead_code)]
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Program {
+    pub function_definitions: Vec<FunctionDeclaration>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
     ReturnStatement(ReturnStatement),
     ExpressionStatement(ExpressionStatement),

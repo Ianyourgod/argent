@@ -1,9 +1,13 @@
+#![allow(unused_variables)]
+
 use nix::unistd::execvp;
 use std::{ffi::{CStr, CString}, process::exit};
 
 mod parser;
 mod lexer;
+mod tacky;
 mod code_gen;
+mod emitter;
 
 fn help(err_code: i32) {
     println!(
@@ -16,18 +20,26 @@ fn help(err_code: i32) {
 }
 
 fn compile_program(input: String, input_name: String, outfile_name: &String, include_output: bool) {
-    let l = lexer::Lexer::new(input.clone());
-    let mut p = parser::Parser::new(l);
+    let lexer = lexer::Lexer::new(input.clone());
+    let mut parser = parser::Parser::new(lexer);
 
-    p.input_name = input_name;
-    p.error_func = Some(error);
+    parser.input_name = input_name;
+    parser.error_func = Some(error);
 
-    let program = p.parse_program();
+    let program = parser.parse_program();
+
+    let mut tacky = tacky::Tacky::new(program);
+    let program = tacky.generate();
+
 
     let mut compiler = code_gen::CodeGen::new(program, Some(input));
+    let assembly_asm = compiler.generate_code();
+    
+    let emitter = emitter::Emitter::new(assembly_asm);
+    let code = emitter.emit();    
 
     // write to file
-    std::fs::write("output/temp.s", compiler.generate_code()).unwrap();
+    std::fs::write("output/temp.s", code).unwrap();
 
     // assemble
     let output = std::process::Command::new("gcc")
