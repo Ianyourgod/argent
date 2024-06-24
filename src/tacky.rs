@@ -89,6 +89,24 @@ impl Tacky {
                 }));
                 dest
             }
+            parser::nodes::Expression::BinOp(exp1, op, exp2) => {
+                let src1 = self.emit_tacky_expression(&*exp1, instructions);
+                let src2 = self.emit_tacky_expression(&*exp2, instructions);
+                let dest = nodes::Value::Identifier(self.make_temporary());
+                instructions.instructions.push(nodes::Instruction::Binary(nodes::Binary {
+                    operator: match op {
+                        parser::nodes::BinOp::Add => nodes::BinaryOperator::Add,
+                        parser::nodes::BinOp::Subtract => nodes::BinaryOperator::Subtract,
+                        parser::nodes::BinOp::Multiply => nodes::BinaryOperator::Multiply,
+                        parser::nodes::BinOp::Divide => nodes::BinaryOperator::Divide,
+                        _ => panic!("Not implemented yet")
+                    },
+                    src1,
+                    src2,
+                    dest: dest.clone(),
+                }));
+                dest
+            }
             _ => panic!("Not implemented yet")
         }
     }

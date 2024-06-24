@@ -67,6 +67,74 @@ impl Pass {
                     _ => panic!("Unsupported unary operator"),
                 }
             }
+            tacky::nodes::Instruction::Binary(binary) => {
+                match binary.operator {
+                    tacky::nodes::BinaryOperator::Add => {
+                        let src1 = self.emit_value(&binary.src1);
+                        let src2 = self.emit_value(&binary.src2);
+                        let dest = self.emit_value(&binary.dest);
+                        instructions.push(nodes::Instruction::Mov(nodes::Mov {
+                            src: src1,
+                            dest: dest.clone(),
+                            suffix: Some(LONG.to_string()),
+                        }));
+                        instructions.push(nodes::Instruction::Add(nodes::Add {
+                            src: src2,
+                            dest,
+                            suffix: Some(LONG.to_string()),
+                        }));
+                    }
+                    tacky::nodes::BinaryOperator::Subtract => {
+                        let src1 = self.emit_value(&binary.src1);
+                        let src2 = self.emit_value(&binary.src2);
+                        let dest = self.emit_value(&binary.dest);
+                        instructions.push(nodes::Instruction::Mov(nodes::Mov {
+                            src: src1,
+                            dest: dest.clone(),
+                            suffix: Some(LONG.to_string()),
+                        }));
+                        instructions.push(nodes::Instruction::Sub(nodes::Sub {
+                            src: src2,
+                            dest,
+                            suffix: Some(LONG.to_string()),
+                        }));
+                    }
+                    tacky::nodes::BinaryOperator::Multiply => {
+                        let src1 = self.emit_value(&binary.src1);
+                        let src2 = self.emit_value(&binary.src2);
+                        let dest = self.emit_value(&binary.dest);
+                        instructions.push(nodes::Instruction::Mov(nodes::Mov {
+                            src: src1,
+                            dest: dest.clone(),
+                            suffix: Some(LONG.to_string()),
+                        }));
+                        instructions.push(nodes::Instruction::Mul(nodes::Mul {
+                            src: src2,
+                            dest,
+                            suffix: Some(LONG.to_string()),
+                        }));
+                    }
+                    tacky::nodes::BinaryOperator::Divide => {
+                        let src1 = self.emit_value(&binary.src1);
+                        let src2 = self.emit_value(&binary.src2);
+                        let dest = self.emit_value(&binary.dest);
+                        instructions.push(nodes::Instruction::Mov(nodes::Mov {
+                            src: src1,
+                            dest: nodes::Operand::Register(nodes::Reg::Eax),
+                            suffix: Some(LONG.to_string()),
+                        }));
+                        instructions.push(nodes::Instruction::Mov(nodes::Mov {
+                            src: nodes::Operand::Immediate(0),
+                            dest: nodes::Operand::Register(nodes::Reg::Edx),
+                            suffix: Some(LONG.to_string()),
+                        }));
+                        instructions.push(nodes::Instruction::Div(nodes::Div {
+                            src: src2,
+                            suffix: Some(LONG.to_string()),
+                        }));
+                    }
+                }
+            }
         }
     }
 

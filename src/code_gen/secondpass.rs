@@ -55,6 +55,44 @@ impl Pass {
                     suffix: neg.suffix.clone(),
                 }));
             },
+            nodes::Instruction::Add(ref add) => {
+                let dest = self.emit_operand(&add.dest, instructions, context);
+                let src = self.emit_operand(&add.src, instructions, context);
+
+                instructions.push(nodes::Instruction::Add(nodes::Add {
+                    dest,
+                    src,
+                    suffix: add.suffix.clone(),
+                }));
+            },
+            nodes::Instruction::Sub(ref sub) => {
+                let dest = self.emit_operand(&sub.dest, instructions, context);
+                let src = self.emit_operand(&sub.src, instructions, context);
+
+                instructions.push(nodes::Instruction::Sub(nodes::Sub {
+                    dest,
+                    src,
+                    suffix: sub.suffix.clone(),
+                }));
+            },
+            nodes::Instruction::Mul(ref mul) => {
+                let dest = self.emit_operand(&mul.dest, instructions, context);
+                let src = self.emit_operand(&mul.src, instructions, context);
+
+                instructions.push(nodes::Instruction::Mul(nodes::Mul {
+                    dest,
+                    src,
+                    suffix: mul.suffix.clone(),
+                }));
+            },
+            nodes::Instruction::Div(ref div) => {
+                let src = self.emit_operand(&div.src, instructions, context);
+
+                instructions.push(nodes::Instruction::Div(nodes::Div {
+                    src,
+                    suffix: div.suffix.clone(),
+                }));
+            },
             _ => {
                 instructions.push(statement.clone());
             },

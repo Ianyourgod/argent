@@ -58,6 +58,7 @@ pub enum Instruction {
     Add(Add),
     Sub(Sub),
     Mul(Mul),
+    Div(Div),
     Neg(Neg),
 }
 
@@ -95,6 +96,12 @@ pub struct Mul {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Div {
+    pub src: Operand,
+    pub suffix: Option<String>,
+} // dest is always %eax
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Neg {
     pub dest: Operand,
     pub suffix: Option<String>,
@@ -123,6 +130,7 @@ pub struct Identifier {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Reg {
     Eax,
+    Edx,
     R10d,
 }
 

@@ -21,6 +21,7 @@ pub struct CompoundInstruction {
 pub enum Instruction {
     Return(Return),
     Unary(Unary),
+    Binary(Binary),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -39,6 +40,22 @@ pub struct Unary {
 pub enum UnaryOperator {
     Negate,
     Complement,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Binary {
+    pub operator: BinaryOperator,
+    pub src1: Value,
+    pub src2: Value,
+    pub dest: Value,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum BinaryOperator {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
 }
 
 #[derive(Debug, Clone, PartialEq)]
