@@ -82,7 +82,7 @@ impl Lexer {
     }
 
     fn create_token(&mut self, kind: TokenType, literal: String, line: usize, pos: usize, length: usize) -> Token {
-        Token { kind, literal, line, pos, length }
+        Token { kind, literal, line, pos: pos-1, length }
     }
 
     pub fn next_token(&mut self) -> Token {
@@ -346,7 +346,7 @@ mod tests {
             Token { kind: TokenType::Keyword, literal: String::from("let"), line: 0, pos: 0, length: 3 },
             Token { kind: TokenType::Identifier, literal: String::from("x"), line: 0, pos: 4, length: 1 },
             Token { kind: TokenType::Colon, literal: String::from(""), line: 0, pos: 5, length: 1 },
-            Token { kind: TokenType::Keyword, literal: String::from("int"), line: 0, pos: 7, length: 3 },
+            Token { kind: TokenType::Identifier, literal: String::from("int"), line: 0, pos: 7, length: 3 },
             Token { kind: TokenType::Assign, literal: String::from(""), line: 0, pos: 11, length: 1 },
             Token { kind: TokenType::Int, literal: String::from("5"), line: 0, pos: 13, length: 1 },
             Token { kind: TokenType::SemiColon, literal: String::from(""), line: 0, pos: 14, length: 1 },

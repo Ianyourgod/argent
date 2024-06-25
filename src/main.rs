@@ -67,33 +67,19 @@ fn error(filename: String, input: String, error_message: String, line: usize, po
     let lines = input.split('\n').collect::<Vec<&str>>();
 
     let error_line = lines[line];
+
     let trimmed_line = error_line.trim_start();
-    let top_line = if line > 0 {
-        lines[line - 1]
+    let error_text = if line > 0 {
+        println!("line: {}", line);
+        let mut out = lines[line - 1].split_at(error_line.len()-trimmed_line.len()).1.to_string();
+        out.push_str("\n");
+        out.push_str(trimmed_line);
+        out
     } else {
-        ""
+        trimmed_line.to_string()
     };
-    let trimmed_top_line = top_line.trim_start();
 
-    let final_top_line: &str;
-    let final_error_line: &str;
-
-    if top_line.len() - trimmed_top_line.len() < error_line.len() - trimmed_line.len() {
-        final_top_line = trimmed_top_line;
-        let split = error_line.split_at(top_line.len()-trimmed_top_line.len());
-        final_error_line = split.1;
-    } else {
-        final_error_line = trimmed_line;
-        let split = top_line.split_at(error_line.len()-trimmed_line.len());
-        final_top_line = split.1;
-    }
-
-    let mut error_text = final_top_line.to_string();
-
-    error_text.push_str("\n");
-    error_text.push_str(final_error_line);
-
-    let diff = error_line.len() - final_error_line.len();
+    let diff = error_line.len() - error_line.trim_start().len();
 
     let mut arrows = String::new();
     for _ in 0..(position - diff - 1) {
@@ -103,7 +89,7 @@ fn error(filename: String, input: String, error_message: String, line: usize, po
         arrows.push_str("^")
     }
 
-    let position = format!("--> {}:{}:{}", filename, line + 1, position);
+    let position = format!("--> {}:{}", line + 1, position + 1);
     
     println!("{}\n{}\n{}\n{}",
         error_message,

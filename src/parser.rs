@@ -33,18 +33,17 @@ impl Parser {
         let lines = self.lexer.input.split('\n').collect::<Vec<&str>>();
 
         let error_line = lines[line];
+
         let trimmed_line = error_line.trim_start();
-        let top_line = if line > 0 {
-            lines[line - 1]
+        let error_text = if line > 0 {
+            println!("line: {}", line);
+            let mut out = lines[line - 1].split_at(error_line.len()-trimmed_line.len()).1.to_string();
+            out.push_str("\n");
+            out.push_str(trimmed_line);
+            out
         } else {
-            ""
+            trimmed_line.to_string()
         };
-
-        let split = top_line.split_at(error_line.len()-trimmed_line.len());
-        let mut error_text = split.1.to_string();
-
-        error_text.push_str("\n");
-        error_text.push_str(trimmed_line);
 
         let diff = error_line.len() - error_line.trim_start().len();
 
@@ -56,7 +55,7 @@ impl Parser {
             arrows.push_str("^")
         }
 
-        let position = format!("--> {}:{}", line + 1, position);
+        let position = format!("--> {}:{}", line + 1, position + 1);
         
         println!("{}\n{}\n{}\n{}",
             error_message,
@@ -252,7 +251,7 @@ impl Parser {
         let mut args: Vec<nodes::FunctionArg> = vec![];
 
         if self.cur_token.kind != lexer::TokenType::RParen {
-            loop  {
+            loop {
                 if self.cur_token.kind != lexer::TokenType::Identifier {
                     self.error(format!("Expected identifier, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
                 }
@@ -285,6 +284,7 @@ impl Parser {
                 if self.cur_token.kind != lexer::TokenType::Comma {
                     self.error(format!("Expected RParen, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
                 }
+                self.next_token();
             }
         }
         self.next_token();
@@ -546,6 +546,7 @@ mod tests {
         }
         "#;
 
+        
         let lexer = Lexer::new(input.to_string());
         let mut parser = Parser::new(lexer);
         let stmt = parser.parse_function_declaration();
