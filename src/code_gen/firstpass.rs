@@ -83,11 +83,12 @@ impl Pass {
                             dest,
                             suffix: Some(LONG.to_string()),
                         }));
-                    }
+                    },
                     tacky::nodes::BinaryOperator::Subtract => {
                         let src1 = self.emit_value(&binary.src1);
                         let src2 = self.emit_value(&binary.src2);
                         let dest = self.emit_value(&binary.dest);
+
                         instructions.push(nodes::Instruction::Mov(nodes::BinOp {
                             src: src1,
                             dest: dest.clone(),
@@ -98,7 +99,7 @@ impl Pass {
                             dest,
                             suffix: Some(LONG.to_string()),
                         }));
-                    }
+                    },
                     tacky::nodes::BinaryOperator::Multiply => {
                         let src1 = self.emit_value(&binary.src1);
                         let src2 = self.emit_value(&binary.src2);
@@ -113,7 +114,7 @@ impl Pass {
                             dest,
                             suffix: Some(LONG.to_string()),
                         }));
-                    }
+                    },
                     tacky::nodes::BinaryOperator::Divide => {
                         let src1 = self.emit_value(&binary.src1);
                         let src2 = self.emit_value(&binary.src2);
@@ -128,8 +129,144 @@ impl Pass {
                             operand: src2,
                             suffix: Some(LONG.to_string()),
                         }));
-                    }
+                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
+                            src: nodes::Operand::Register(nodes::Reg::AX),
+                            dest,
+                            suffix: Some(LONG.to_string()),
+                        }));
+                    },
+                    tacky::nodes::BinaryOperator::And => panic!(),
+                    tacky::nodes::BinaryOperator::Or => panic!(),
+                    tacky::nodes::BinaryOperator::GreaterThan => {
+                        let src1 = self.emit_value(&binary.src1);
+                        let src2 = self.emit_value(&binary.src2);
+                        let dest = self.emit_value(&binary.dest);
+                        instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
+                            src: src1,
+                            dest: src2.clone(),
+                            suffix: Some(LONG.to_string()),
+                        }));
+                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
+                            src: nodes::Operand::Immediate(0),
+                            dest: dest.clone(),
+                            suffix: Some(LONG.to_string()),
+                        }));
+                        instructions.push(nodes::Instruction::SetCC(nodes::CondCode::G, dest));
+                    },
+                    tacky::nodes::BinaryOperator::GreaterThanEqual => {
+                        let src1 = self.emit_value(&binary.src1);
+                        let src2 = self.emit_value(&binary.src2);
+                        let dest = self.emit_value(&binary.dest);
+                        instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
+                            src: src1,
+                            dest: src2.clone(),
+                            suffix: Some(LONG.to_string()),
+                        }));
+                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
+                            src: nodes::Operand::Immediate(0),
+                            dest: dest.clone(),
+                            suffix: Some(LONG.to_string()),
+                        }));
+                        instructions.push(nodes::Instruction::SetCC(nodes::CondCode::GE, dest));
+                    },
+                    tacky::nodes::BinaryOperator::LessThan => {
+                        let src1 = self.emit_value(&binary.src1);
+                        let src2 = self.emit_value(&binary.src2);
+                        let dest = self.emit_value(&binary.dest);
+                        instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
+                            src: src1,
+                            dest: src2.clone(),
+                            suffix: Some(LONG.to_string()),
+                        }));
+                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
+                            src: nodes::Operand::Immediate(0),
+                            dest: dest.clone(),
+                            suffix: Some(LONG.to_string()),
+                        }));
+                        instructions.push(nodes::Instruction::SetCC(nodes::CondCode::L, dest));
+                    },
+                    tacky::nodes::BinaryOperator::LessThanEqual => {
+                        let src1 = self.emit_value(&binary.src1);
+                        let src2 = self.emit_value(&binary.src2);
+                        let dest = self.emit_value(&binary.dest);
+                        instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
+                            src: src1,
+                            dest: src2.clone(),
+                            suffix: Some(LONG.to_string()),
+                        }));
+                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
+                            src: nodes::Operand::Immediate(0),
+                            dest: dest.clone(),
+                            suffix: Some(LONG.to_string()),
+                        }));
+                        instructions.push(nodes::Instruction::SetCC(nodes::CondCode::LE, dest));
+                    },
+                    tacky::nodes::BinaryOperator::Equal => {
+                        let src1 = self.emit_value(&binary.src1);
+                        let src2 = self.emit_value(&binary.src2);
+                        let dest = self.emit_value(&binary.dest);
+                        instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
+                            src: src1,
+                            dest: src2.clone(),
+                            suffix: Some(LONG.to_string()),
+                        }));
+                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
+                            src: nodes::Operand::Immediate(0),
+                            dest: dest.clone(),
+                            suffix: Some(LONG.to_string()),
+                        }));
+                        instructions.push(nodes::Instruction::SetCC(nodes::CondCode::E, dest));
+                    },
+                    tacky::nodes::BinaryOperator::NotEqual => {
+                        let src1 = self.emit_value(&binary.src1);
+                        let src2 = self.emit_value(&binary.src2);
+                        let dest = self.emit_value(&binary.dest);
+                        instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
+                            src: src1,
+                            dest: src2.clone(),
+                            suffix: Some(LONG.to_string()),
+                        }));
+                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
+                            src: nodes::Operand::Immediate(0),
+                            dest: dest.clone(),
+                            suffix: Some(LONG.to_string()),
+                        }));
+                        instructions.push(nodes::Instruction::SetCC(nodes::CondCode::NE, dest));
+                    },
                 }
+            }
+            tacky::nodes::Instruction::Copy(copy) => {
+                let src = self.emit_value(&copy.src);
+                let dest = self.emit_value(&copy.dest);
+                instructions.push(nodes::Instruction::Mov(nodes::BinOp {
+                    src,
+                    dest,
+                    suffix: Some(LONG.to_string()),
+                }));
+            }
+            tacky::nodes::Instruction::Jump(label) => {
+                instructions.push(nodes::Instruction::Jump(label.clone()));
+            }
+            tacky::nodes::Instruction::JumpIfZero(label, value) => {
+                let value = self.emit_value(value);
+                instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
+                    src: nodes::Operand::Immediate(0),
+                    dest: value.clone(),
+                    suffix: Some(LONG.to_string()),
+                }));
+                instructions.push(nodes::Instruction::JumpCC(nodes::CondCode::E, label.clone()));
+            }
+            tacky::nodes::Instruction::JumpIfNotZero(label, value) => {
+                let value = self.emit_value(value);
+                instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
+                    src: nodes::Operand::Immediate(0),
+                    dest: value.clone(),
+                    suffix: Some(LONG.to_string()),
+                }));
+                instructions.push(nodes::Instruction::JumpCC(nodes::CondCode::NE, label.clone()));
+            }
+            tacky::nodes::Instruction::Label(label) => {
+                instructions.push(nodes::Instruction::Label(label.clone()));
             }
         }
     }

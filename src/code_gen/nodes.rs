@@ -61,6 +61,21 @@ pub enum Instruction {
     Div(UnaryOp),
     Neg(UnaryOp),
     Cdq,
+    Label(String),
+    Cmp(BinOp),
+    Jump(String),
+    JumpCC(CondCode, String),
+    SetCC(CondCode, Operand),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum CondCode {
+    E,
+    NE,
+    G,
+    GE,
+    L,
+    LE,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -97,21 +112,35 @@ pub enum Reg {
     R11
 }
 
-impl std::fmt::Display for Operand {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> core::fmt::Result {
+impl Operand {
+    pub fn displ(&self, size: Option<i8>) -> String {
         match self {
             Operand::Register(reg) => {
                 let reg = match reg {
-                    Reg::AX => "%eax",
-                    Reg::DX => "%edx",
-                    Reg::R10 => "%r10d",
-                    Reg::R11 => "%r11d",
+                    Reg::AX => "ax",
+                    Reg::DX => "edx",
+                    Reg::R10 => "r10d",
+                    Reg::R11 => "r11d",
                 };
-                write!(f, "{}", reg)
+                if reg == "ax" {
+                    if size.is_some() {
+                        match size.unwrap() {
+                            1 => format!("%al"),
+                            2 => format!("%ax"),
+                            4 => format!("%eax"),
+                            8 => format!("%rax"),
+                            _ => panic!(),
+                        }
+                    } else {
+                        format!("%e{}", reg)
+                    }
+                } else {
+                    format!("%{}", reg)
+                }
             },
-            Operand::Immediate(imm) => write!(f, "${}", imm),
-            Operand::StackAllocate(idx) => write!(f, "-{}({})", idx, "%rbp"),
-            Operand::Pseudo(ident) => write!(f, "%{}", ident.name),
+            Operand::Immediate(imm) => format!("${}", imm),
+            Operand::StackAllocate(idx) => format!("-{}({})", idx, "%rbp"),
+            Operand::Pseudo(ident) => format!("%{}", ident.name),
         }
     }
 }

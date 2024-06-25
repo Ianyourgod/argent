@@ -22,6 +22,17 @@ pub enum Instruction {
     Return(Return),
     Unary(Unary),
     Binary(Binary),
+    Copy(Copy),
+    Jump(String),
+    JumpIfZero(String, Value),
+    JumpIfNotZero(String, Value),
+    Label(String),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Copy {
+    pub src: Value,
+    pub dest: Value,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -56,6 +67,14 @@ pub enum BinaryOperator {
     Subtract,
     Multiply,
     Divide,
+    LessThan,
+    LessThanEqual,
+    GreaterThan,
+    GreaterThanEqual,
+    Equal,
+    NotEqual,
+    And,
+    Or,
 }
 
 #[derive(Debug, Clone, PartialEq)]

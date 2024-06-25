@@ -93,6 +93,21 @@ impl Pass {
                     suffix: div.suffix.clone(),
                 }));
             },
+            nodes::Instruction::Cmp(ref cmp) => {
+                let dest = self.emit_operand(&cmp.dest, instructions, context);
+                let src = self.emit_operand(&cmp.src, instructions, context);
+
+                instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
+                    dest,
+                    src,
+                    suffix: cmp.suffix.clone(),
+                }));
+            },
+            nodes::Instruction::SetCC(ref cond_code, ref operand) => {
+                let operand = self.emit_operand(&operand, instructions, context);
+
+                instructions.push(nodes::Instruction::SetCC(cond_code.clone(), operand));
+            },
             _ => {
                 instructions.push(statement.clone());
             },

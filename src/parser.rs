@@ -353,32 +353,70 @@ impl Parser {
 
     fn get_precidence(&self, token: &lexer::TokenType) -> i8 {
         match token {
-            lexer::TokenType::Add | lexer::TokenType::Subtract => 6,
-            lexer::TokenType::Star | lexer::TokenType::Divide => 7,
-            lexer::TokenType::LParen => 8,
+            lexer::TokenType::Or => 5,
+            lexer::TokenType::And => 10,
+            lexer::TokenType::Equal | lexer::TokenType::NotEqual => 30,
+            lexer::TokenType::LessThan | lexer::TokenType::GreaterThan |
+            lexer::TokenType::LessThanEqual | lexer::TokenType::GreaterThanEqual => 35,
+            lexer::TokenType::Add | lexer::TokenType::Subtract => 45,
+            lexer::TokenType::Star | lexer::TokenType::Divide => 50,
+            lexer::TokenType::LParen => 55,
             _ => 0,
+        }
+    }
+
+    fn parse_binop(&mut self) -> nodes::BinOp {
+        match self.cur_token.kind {
+            lexer::TokenType::Add => nodes::BinOp::Add,
+            lexer::TokenType::Subtract => nodes::BinOp::Subtract,
+            lexer::TokenType::Star => nodes::BinOp::Multiply,
+            lexer::TokenType::Divide => nodes::BinOp::Divide,
+            lexer::TokenType::Equal => nodes::BinOp::Equal,
+            lexer::TokenType::NotEqual => nodes::BinOp::NotEqual,
+            lexer::TokenType::LessThan => nodes::BinOp::LessThan,
+            lexer::TokenType::GreaterThan => nodes::BinOp::GreaterThan,
+            lexer::TokenType::LessThanEqual => nodes::BinOp::LessThanEqual,
+            lexer::TokenType::GreaterThanEqual => nodes::BinOp::GreaterThanEqual,
+            lexer::TokenType::And => nodes::BinOp::And,
+            lexer::TokenType::Or => nodes::BinOp::Or,
+            _ => {
+                self.error(format!("Expected BinOp, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+                panic!();
+            },
+        }
+    }
+
+    fn parse_unop(&mut self) -> nodes::UnaryOp {
+        match self.cur_token.kind {
+            lexer::TokenType::Subtract => nodes::UnaryOp::Negation,
+            lexer::TokenType::LogicalNegation => nodes::UnaryOp::LogicalNegation,
+            lexer::TokenType::BitwiseComplement => nodes::UnaryOp::BitwiseComplement,
+            _ => {
+                self.error(format!("Expected UnaryOp, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+                panic!();
+            },
+        }
+    }
+
+    fn is_binop(&self) -> bool {
+        match self.cur_token.kind {
+            lexer::TokenType::Add | lexer::TokenType::Subtract |
+            lexer::TokenType::Star | lexer::TokenType::Divide |
+            lexer::TokenType::Equal | lexer::TokenType::NotEqual |
+            lexer::TokenType::LessThan | lexer::TokenType::GreaterThan |
+            lexer::TokenType::LessThanEqual | lexer::TokenType::GreaterThanEqual |
+            lexer::TokenType::And | lexer::TokenType::Or => true,
+            _ => false,
         }
     }
 
     fn parse_expression(&mut self, min_prec: i8) -> Box<nodes::Expression> {
         let mut node = self.parse_factor();
         let prec = self.get_precidence(&self.cur_token.kind);
-        while  (self.cur_token.kind == lexer::TokenType::Add         ||
-                self.cur_token.kind == lexer::TokenType::Subtract    ||
-                self.cur_token.kind == lexer::TokenType::Star        ||
-                self.cur_token.kind == lexer::TokenType::Divide)     &&
-                prec >= min_prec                                      {
-
-            let operator = match self.cur_token.kind {
-                lexer::TokenType::Add => nodes::BinOp::Add,
-                lexer::TokenType::Subtract => nodes::BinOp::Subtract,
-                lexer::TokenType::Star => nodes::BinOp::Multiply,
-                lexer::TokenType::Divide => nodes::BinOp::Divide,
-                _ => {
-                    self.error(format!("Expected BinOp, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
-                    panic!();
-                },
-            };
+        while self.is_binop() &&
+              prec >= min_prec {
+            
+            let operator = self.parse_binop();
             self.next_token();
             let right = self.parse_expression(prec + 1);
             node = Box::new(nodes::Expression::BinOp(node, operator, right));
@@ -396,20 +434,12 @@ impl Parser {
             lexer::TokenType::Identifier => {
                 self.parse_identifier()
             },
-            lexer::TokenType::Subtract => {
+            lexer::TokenType::LogicalNegation | lexer::TokenType::BitwiseComplement |
+            lexer::TokenType::Subtract                                           => {
+                let op = self.parse_unop();
                 self.next_token();
                 let expr = self.parse_factor();
-                Box::new(nodes::Expression::UnaryOp(nodes::UnaryOp::Negation, expr))
-            },
-            lexer::TokenType::LogicalNegation => {
-                self.next_token();
-                let right = self.parse_factor();
-                Box::new(nodes::Expression::UnaryOp(nodes::UnaryOp::LogicalNegation, right))
-            },
-            lexer::TokenType::BitwiseComplement => {
-                self.next_token();
-                let right = self.parse_factor();
-                Box::new(nodes::Expression::UnaryOp(nodes::UnaryOp::BitwiseComplement, right))
+                Box::new(nodes::Expression::UnaryOp(op, expr))
             },
             lexer::TokenType::LParen => {
                 self.next_token();

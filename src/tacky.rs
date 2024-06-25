@@ -4,22 +4,35 @@
 use crate::parser;
 pub mod nodes;
 
+pub struct Context {
+    pub tmp_n: i32,
+    pub label_n: i32,
+}
+
 pub struct Tacky {
     pub ast: parser::nodes::Program,
-    pub tmp_n: i32,
+    pub context: Context,
 }
 
 impl Tacky {
     pub fn new(ast: parser::nodes::Program) -> Self {
         Self {
             ast,
-            tmp_n: -1,
+            context: Context {
+                tmp_n: -1,
+                label_n: -1,
+            },
         }
     }
 
     fn make_temporary(&mut self) -> String {
-        self.tmp_n += 1;
-        format!(".tmp{}", self.tmp_n)
+        self.context.tmp_n += 1;
+        format!(".tmp{}", self.context.tmp_n)
+    }
+
+    fn make_label(&mut self) -> String {
+        self.context.label_n += 1;
+        format!(".L{}", self.context.label_n)
     }
 
     pub fn generate(&mut self) -> nodes::Program {
@@ -93,17 +106,50 @@ impl Tacky {
                 dest
             }
             parser::nodes::Expression::BinOp(exp1, op, exp2) => {
+                let operator = match op {
+                    parser::nodes::BinOp::Add => nodes::BinaryOperator::Add,
+                    parser::nodes::BinOp::Subtract => nodes::BinaryOperator::Subtract,
+                    parser::nodes::BinOp::Multiply => nodes::BinaryOperator::Multiply,
+                    parser::nodes::BinOp::Divide => nodes::BinaryOperator::Divide,
+                    parser::nodes::BinOp::LessThan => nodes::BinaryOperator::LessThan,
+                    parser::nodes::BinOp::LessThanEqual => nodes::BinaryOperator::LessThanEqual,
+                    parser::nodes::BinOp::GreaterThan => nodes::BinaryOperator::GreaterThan,
+                    parser::nodes::BinOp::GreaterThanEqual => nodes::BinaryOperator::GreaterThanEqual,
+                    parser::nodes::BinOp::Equal => nodes::BinaryOperator::Equal,
+                    parser::nodes::BinOp::NotEqual => nodes::BinaryOperator::NotEqual,
+                    parser::nodes::BinOp::And => nodes::BinaryOperator::And,
+                    parser::nodes::BinOp::Or => nodes::BinaryOperator::Or,
+                    #[allow(unreachable_patterns)]
+                    _ => panic!("Not implemented yet")
+                };
+
+                if operator == nodes::BinaryOperator::And || operator == nodes::BinaryOperator::Or {
+                    let src1 = self.emit_tacky_expression(&*exp1, instructions);
+                    let end = self.make_label();
+                    if operator == nodes::BinaryOperator::And {
+                        instructions.instructions.push(nodes::Instruction::JumpIfZero(end.clone(), src1.clone()));
+                    } else {
+                        instructions.instructions.push(nodes::Instruction::JumpIfNotZero(end.clone(), src1.clone()));
+                    }
+                    let src2 = self.emit_tacky_expression(&*exp2, instructions);
+                    if operator == nodes::BinaryOperator::And {
+                        instructions.instructions.push(nodes::Instruction::JumpIfZero(end.clone(), src1.clone()));
+                    } else {
+                        instructions.instructions.push(nodes::Instruction::JumpIfNotZero(end.clone(), src1.clone()));
+                    }
+                    let dest = nodes::Value::Identifier(self.make_temporary());
+                    instructions.instructions.push(nodes::Instruction::Copy(nodes::Copy {
+                        src: nodes::Value::Constant(1),
+                        dest: dest.clone(),
+                    }));
+                    instructions.instructions.push(nodes::Instruction::Label(end));
+                    return dest;
+                }
                 let src1 = self.emit_tacky_expression(&*exp1, instructions);
                 let src2 = self.emit_tacky_expression(&*exp2, instructions);
                 let dest = nodes::Value::Identifier(self.make_temporary());
                 instructions.instructions.push(nodes::Instruction::Binary(nodes::Binary {
-                    operator: match op {
-                        parser::nodes::BinOp::Add => nodes::BinaryOperator::Add,
-                        parser::nodes::BinOp::Subtract => nodes::BinaryOperator::Subtract,
-                        parser::nodes::BinOp::Multiply => nodes::BinaryOperator::Multiply,
-                        parser::nodes::BinOp::Divide => nodes::BinaryOperator::Divide,
-                        _ => panic!("Not implemented yet")
-                    },
+                    operator,
                     src1,
                     src2,
                     dest: dest.clone(),
