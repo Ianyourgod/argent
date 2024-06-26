@@ -171,3 +171,108 @@ impl Tacky {
     }
 }
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser;
+
+    #[test]
+    fn test_generate() {
+        let ast = parser::nodes::Program {
+            function_definitions: vec![
+                parser::nodes::FunctionDeclaration {
+                    function_name: "main".to_string(),
+                    return_type: "int".to_string(),
+                    body: Box::new(parser::nodes::Statement::Compound(parser::nodes::CompoundStatement {
+                        statements: vec![
+                            Box::new(parser::nodes::Statement::ReturnStatement(parser::nodes::ReturnStatement {
+                                return_value: Box::new(parser::nodes::Expression::Literal(parser::nodes::Literal::Int(0))),
+                            })),
+                        ],
+                    })),
+                    params: vec![],
+                },
+            ],
+        };
+        let mut tacky = Tacky::new(ast);
+        let program = tacky.generate();
+        assert_eq!(program.function_definitions.len(), 1);
+        assert_eq!(program.function_definitions[0].function_name, "main");
+        assert_eq!(program.function_definitions[0].return_type, "int");
+        assert_eq!(program.function_definitions[0].body.instructions.len(), 2);
+        assert_eq!(program.function_definitions[0].body.instructions[0], nodes::Instruction::Return(nodes::Value::Constant(0)));
+        assert_eq!(program.function_definitions[0].body.instructions[1], nodes::Instruction::Return(nodes::Value::Constant(0))); // Return 0 is added by the generator so if theres no return statement it doesnt bug out
+    }
+
+    #[test]
+    fn test_generate_with_variable_declaration() {
+        let ast = parser::nodes::Program {
+            function_definitions: vec![
+                parser::nodes::FunctionDeclaration {
+                    function_name: "main".to_string(),
+                    return_type: "int".to_string(),
+                    body: Box::new(parser::nodes::Statement::Compound(parser::nodes::CompoundStatement {
+                        statements: vec![
+                            Box::new(parser::nodes::Statement::VariableDeclaration(parser::nodes::VariableDeclaration {
+                                ident: parser::nodes::Identifier { value: "x".to_string() },
+                                expr: Some(Box::new(parser::nodes::Expression::Literal(parser::nodes::Literal::Int(42)))),
+                                kind: "int".to_string(),
+                            })),
+                            Box::new(parser::nodes::Statement::ReturnStatement(parser::nodes::ReturnStatement {
+                                return_value: Box::new(parser::nodes::Expression::Var(parser::nodes::Identifier { value: "x".to_string() })),
+                            })),
+                        ],
+                    })),
+                    params: vec![],
+                },
+            ],
+        };
+        let mut tacky = Tacky::new(ast);
+        let program = tacky.generate();
+        assert_eq!(program.function_definitions.len(), 1);
+        assert_eq!(program.function_definitions[0].function_name, "main");
+        assert_eq!(program.function_definitions[0].return_type, "int");
+        assert_eq!(program.function_definitions[0].body.instructions.len(), 3);
+        assert_eq!(program.function_definitions[0].body.instructions[0], nodes::Instruction::Copy(nodes::Copy {
+            src: nodes::Value::Constant(42),
+            dest: nodes::Value::Identifier("x".to_string()),
+        }));
+        assert_eq!(program.function_definitions[0].body.instructions[1], nodes::Instruction::Return(nodes::Value::Identifier("x".to_string())));
+        assert_eq!(program.function_definitions[0].body.instructions[2], nodes::Instruction::Return(nodes::Value::Constant(0))); // Return 0 is added by the generator so if theres no return statement it doesnt bug out
+    }
+
+    #[test]
+    fn test_generate_with_unary_expression() {
+        let ast = parser::nodes::Program {
+            function_definitions: vec![
+                parser::nodes::FunctionDeclaration {
+                    function_name: "main".to_string(),
+                    return_type: "int".to_string(),
+                    body: Box::new(parser::nodes::Statement::Compound(parser::nodes::CompoundStatement {
+                        statements: vec![
+                            Box::new(parser::nodes::Statement::ReturnStatement(parser::nodes::ReturnStatement {
+                                return_value: Box::new(parser::nodes::Expression::UnaryOp(parser::nodes::UnaryOp::Negation, Box::new(parser::nodes::Expression::Literal(parser::nodes::Literal::Int(42))))),
+                            })),
+                        ],
+                    })),
+                    params: vec![],
+                },
+            ],
+        };
+        let mut tacky = Tacky::new(ast);
+        let program = tacky.generate();
+        assert_eq!(program.function_definitions.len(), 1);
+        assert_eq!(program.function_definitions[0].function_name, "main");
+        assert_eq!(program.function_definitions[0].return_type, "int");
+        println!("{:?}", program.function_definitions[0].body.instructions);
+        assert_eq!(program.function_definitions[0].body.instructions.len(), 3);
+        assert_eq!(program.function_definitions[0].body.instructions[0], nodes::Instruction::Unary(nodes::Unary {
+            operator: nodes::UnaryOperator::Negate,
+            src: nodes::Value::Constant(42),
+            dest: nodes::Value::Identifier(".tmp0".to_string()),
+        }));
+        assert_eq!(program.function_definitions[0].body.instructions[1], nodes::Instruction::Return(nodes::Value::Identifier(".tmp0".to_string())));
+        assert_eq!(program.function_definitions[0].body.instructions[2], nodes::Instruction::Return(nodes::Value::Constant(0))); // Return 0 is added by the generator so if theres no return statement it doesnt bug out
+    }
+}
