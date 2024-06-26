@@ -1,4 +1,5 @@
 fn main(argc: int) -> int {
-    let a: int = 5;
-    return a;
+    let a: int = 6;
+    let b: int = 5;
+    return;
 }

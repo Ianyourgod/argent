@@ -74,7 +74,6 @@ fn error(filename: String, input: String, error_message: String, line: usize, po
 
     let trimmed_line = error_line.trim_start();
     let error_text = if line > 0 {
-        println!("line: {}", line);
         let mut out = lines[line - 1].split_at(error_line.len()-trimmed_line.len()).1.to_string();
         out.push_str("\n");
         out.push_str(trimmed_line);
@@ -86,7 +85,7 @@ fn error(filename: String, input: String, error_message: String, line: usize, po
     let diff = error_line.len() - error_line.trim_start().len();
 
     let mut arrows = String::new();
-    for _ in 0..(position - diff - 1) {
+    for _ in 0..(position - diff) {
         arrows.push_str(" ");
     }
     for _ in position..(position+length) {
