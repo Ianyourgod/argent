@@ -64,7 +64,7 @@ impl Pass {
         match *statement {
             nodes::Statement::VariableDeclaration(decl) => {
                 if self.context.var_map.contains_key(&decl.ident.value) {
-                    panic!("Variable {} already declared in scope", decl.ident.value)
+                    panic!("Variable {} already declared in scope", decl.ident.value);
                 }
 
                 let new_ident = self.make_temporary();
@@ -99,14 +99,14 @@ impl Pass {
                 if self.context.var_map.contains_key(&ident.value) {
                     Box::new(nodes::Expression::Var(nodes::Identifier { value: self.context.var_map.get(&ident.value).unwrap().clone() }))
                 } else {
-                    panic!("Variable {} not found in scope", ident.value)
+                    panic!("Variable {} not found in scope", ident.value);
                 }
             },
             nodes::Expression::Assignment(ref ident, ref expr) => {
                 if self.context.var_map.contains_key(&ident.value) {
                     Box::new(nodes::Expression::Assignment(nodes::Identifier { value: self.context.var_map.get(&ident.value).unwrap().clone() }, self.resolve_expression(expr.clone())))
                 } else {
-                    expr.clone()
+                    panic!("Variable {} not found in scope", ident.value);
                 }
             },
             nodes::Expression::BinOp(ref left, ref op, ref right) => {
@@ -117,5 +117,149 @@ impl Pass {
             },
             _ => expr,
         }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::nodes;
+
+    #[test]
+    fn test_variable_resolution() {
+        let program = nodes::Program {
+            function_definitions: vec![
+                nodes::FunctionDeclaration {
+                    function_name: "main".to_string(),
+                    return_type: "int".to_string(),
+                    params: vec![],
+                    body: Box::new(nodes::Statement::Compound(nodes::CompoundStatement {
+                        statements: vec![
+                            Box::new(nodes::Statement::VariableDeclaration(nodes::VariableDeclaration {
+                                kind: "int".to_string(),
+                                ident: nodes::Identifier { value: "a".to_string() },
+                                expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::Int(5)))),
+                            })),
+                            Box::new(nodes::Statement::ExpressionStatement(nodes::ExpressionStatement {
+                                expression: Box::new(nodes::Expression::Var(nodes::Identifier { value: "a".to_string() })),
+                            })),
+                        ],
+                    })),
+                },
+            ],
+        };
+
+        let mut pass = Pass::new(&program);
+        let new_program = pass.run();
+
+        assert_eq!(new_program.function_definitions[0].body, Box::new(nodes::Statement::Compound(nodes::CompoundStatement {
+            statements: vec![
+                Box::new(nodes::Statement::VariableDeclaration(nodes::VariableDeclaration {
+                    kind: "int".to_string(),
+                    ident: nodes::Identifier { value: ".localvar0".to_string() },
+                    expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::Int(5)))),
+                })),
+                Box::new(nodes::Statement::ExpressionStatement(nodes::ExpressionStatement {
+                    expression: Box::new(nodes::Expression::Var(nodes::Identifier { value: ".localvar0".to_string() })),
+                })),
+            ],
+        })));
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_variable_resolution_duplicate() {
+        let program = nodes::Program {
+            function_definitions: vec![
+                nodes::FunctionDeclaration {
+                    function_name: "main".to_string(),
+                    return_type: "int".to_string(),
+                    params: vec![],
+                    body: Box::new(nodes::Statement::Compound(nodes::CompoundStatement {
+                        statements: vec![
+                            Box::new(nodes::Statement::VariableDeclaration(nodes::VariableDeclaration {
+                                kind: "int".to_string(),
+                                ident: nodes::Identifier { value: "a".to_string() },
+                                expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::Int(5)))),
+                            })),
+                            Box::new(nodes::Statement::VariableDeclaration(nodes::VariableDeclaration {
+                                kind: "int".to_string(),
+                                ident: nodes::Identifier { value: "a".to_string() },
+                                expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::Int(5)))),
+                            })),
+                        ],
+                    })),
+                },
+            ],
+        };
+
+        let mut pass = Pass::new(&program);
+        pass.run();
+    }
+
+    #[test]
+    fn test_variable_resolution_assignment() {
+        let program = nodes::Program {
+            function_definitions: vec![
+                nodes::FunctionDeclaration {
+                    function_name: "main".to_string(),
+                    return_type: "int".to_string(),
+                    params: vec![],
+                    body: Box::new(nodes::Statement::Compound(nodes::CompoundStatement {
+                        statements: vec![
+                            Box::new(nodes::Statement::VariableDeclaration(nodes::VariableDeclaration {
+                                kind: "int".to_string(),
+                                ident: nodes::Identifier { value: "a".to_string() },
+                                expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::Int(5)))),
+                            })),
+                            Box::new(nodes::Statement::ExpressionStatement(nodes::ExpressionStatement {
+                                expression: Box::new(nodes::Expression::Assignment(nodes::Identifier { value: "a".to_string() }, Box::new(nodes::Expression::Literal(nodes::Literal::Int(10)) ))),
+                            })),
+                        ],
+                    })),
+                },
+            ],
+        };
+
+        let mut pass = Pass::new(&program);
+        let new_program = pass.run();
+
+        assert_eq!(new_program.function_definitions[0].body, Box::new(nodes::Statement::Compound(nodes::CompoundStatement {
+            statements: vec![
+                Box::new(nodes::Statement::VariableDeclaration(nodes::VariableDeclaration {
+                    kind: "int".to_string(),
+                    ident: nodes::Identifier { value: ".localvar0".to_string() },
+                    expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::Int(5)))),
+                })),
+                Box::new(nodes::Statement::ExpressionStatement(nodes::ExpressionStatement {
+                    expression: Box::new(nodes::Expression::Assignment(nodes::Identifier { value: ".localvar0".to_string() }, Box::new(nodes::Expression::Literal(nodes::Literal::Int(10)) ))),
+                })),
+            ],
+        })));
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_variable_resolution_assignment_undeclared() {
+        let program = nodes::Program {
+            function_definitions: vec![
+                nodes::FunctionDeclaration {
+                    function_name: "main".to_string(),
+                    return_type: "int".to_string(),
+                    params: vec![],
+                    body: Box::new(nodes::Statement::Compound(nodes::CompoundStatement {
+                        statements: vec![
+                            Box::new(nodes::Statement::ExpressionStatement(nodes::ExpressionStatement {
+                                expression: Box::new(nodes::Expression::Assignment(nodes::Identifier { value: "a".to_string() }, Box::new(nodes::Expression::Literal(nodes::Literal::Int(10)) ))),
+                            })),
+                        ],
+                    })),
+                },
+            ],
+        };
+
+        let mut pass = Pass::new(&program);
+        pass.run();
     }
 }
