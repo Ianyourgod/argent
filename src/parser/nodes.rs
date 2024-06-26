@@ -60,7 +60,7 @@ pub struct FunctionArg {
 pub struct VariableDeclaration {
     pub kind: String, // just int rn
     pub ident: Identifier,
-    pub expr: Box<Expression>,
+    pub expr: Option<Box<Expression>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -72,11 +72,10 @@ pub struct CompoundStatement {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     Literal(Literal),
-    Identifier(Identifier),
+    Var(Identifier),
     BinOp(Box<Expression>, BinOp, Box<Expression>),
     UnaryOp(UnaryOp, Box<Expression>),
     Assignment(Identifier, Box<Expression>),
-    Conditional(Box<Expression>, Box<Expression>, Box<Expression>),
     FunctionCall(String, Vec<Box<Expression>>),
 }
 

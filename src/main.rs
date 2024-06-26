@@ -3,8 +3,9 @@
 use nix::unistd::execvp;
 use std::{ffi::{CStr, CString}, process::exit};
 
-mod parser;
 mod lexer;
+mod parser;
+mod semantic_analysis;
 mod tacky;
 mod code_gen;
 mod emitter;
@@ -27,6 +28,9 @@ fn compile_program(input: String, input_name: String, outfile_name: &String, inc
     parser.error_func = Some(error);
 
     let program = parser.parse_program();
+
+    let mut resolver = semantic_analysis::Analysis::new(program.clone());
+    let program = resolver.run();
 
     let mut tacky = tacky::Tacky::new(program);
     let program = tacky.generate();

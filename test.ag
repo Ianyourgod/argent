@@ -1,3 +1,4 @@
 fn main(argc: int) -> int {
-    return 1 >= 1;
+    let a: int = 5;
+    return a;
 }

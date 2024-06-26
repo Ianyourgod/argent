@@ -116,7 +116,7 @@ impl Pass {
 
     fn emit_operand(&mut self, operand: &nodes::Operand, instructions: &mut Vec<nodes::Instruction>, context: &mut nodes::Context) -> nodes::Operand {
         match operand {
-            &nodes::Operand::Pseudo(ref identifier) => {
+            nodes::Operand::Pseudo(ref identifier) => {
                 let offset = context.var_map.get(&identifier.name);
                 match offset {
                     Some(offset) => {

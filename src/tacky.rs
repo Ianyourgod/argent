@@ -54,33 +54,41 @@ impl Tacky {
         program
     }
 
-    fn emit_tacky_statement(&mut self, statement: &parser::nodes::Statement, instructions: &mut nodes::CompoundInstruction) -> nodes::Value {
+    fn emit_tacky_statement(&mut self, statement: &parser::nodes::Statement, instructions: &mut nodes::CompoundInstruction) {
         match statement {
             parser::nodes::Statement::ReturnStatement(return_statement) => {
                 let return_value = self.emit_tacky_expression(&*return_statement.return_value, instructions);
                 instructions.instructions.push(nodes::Instruction::Return(nodes::Return {
                     return_value
                 }));
-                nodes::Value::Empty
             }
             parser::nodes::Statement::FunctionDeclaration(ref function_declaration) => {
                 let mut body = nodes::CompoundInstruction {
                     instructions: Vec::new(),
                 };
                 self.emit_tacky_statement(&*function_declaration.body, &mut body);
-                nodes::Value::Empty
             }
             parser::nodes::Statement::Compound(ref compound_statement) => {
                 for statement in &compound_statement.statements {
                     self.emit_tacky_statement(statement, instructions);
                 }
-                nodes::Value::Empty
             }
             parser::nodes::Statement::ExpressionStatement(ref expression) => {
-                nodes::Value::Empty // skip since it aint doing anything
+                self.emit_tacky_expression(&*expression.expression, instructions);
+            }
+            parser::nodes::Statement::VariableDeclaration(ref decl) => {
+                let var = nodes::Value::Identifier(decl.ident.value.clone());
+                let value = match &decl.expr {
+                    Some(value) => self.emit_tacky_expression(&*value, instructions),
+                    None => nodes::Value::Constant(0),
+                };
+                instructions.instructions.push(nodes::Instruction::Copy(nodes::Copy {
+                    src: value,
+                    dest: var,
+                }));
             }
             _ => panic!("Not implemented yet: {:?}", statement)
-        }
+        };
     }
 
     fn emit_tacky_expression(&mut self, expression: &parser::nodes::Expression, instructions: &mut nodes::CompoundInstruction) -> nodes::Value {
@@ -155,6 +163,9 @@ impl Tacky {
                     dest: dest.clone(),
                 }));
                 dest
+            }
+            parser::nodes::Expression::Var(ident) => {
+                nodes::Value::Identifier(ident.value.clone())
             }
             _ => panic!("Not implemented yet")
         }

@@ -93,6 +93,7 @@ impl Parser {
             program.function_definitions.push(fn_def.clone());
             self.next_token();
         }
+
         program
     }
 
@@ -166,13 +167,13 @@ impl Parser {
             Box::new(nodes::Statement::VariableDeclaration(nodes::VariableDeclaration {
                 kind,
                 ident: nodes::Identifier { value: ident },
-                expr,
+                expr: Some(expr),
             }))
         } else if self.cur_token.kind == lexer::TokenType::SemiColon {
             Box::new(nodes::Statement::VariableDeclaration(nodes::VariableDeclaration {
                 kind,
                 ident: nodes::Identifier { value: ident },
-                expr: Box::new(nodes::Expression::Literal(nodes::Literal::Int(0))), // todo: add some kind of undefined value
+                expr: None
             }))
         } else {
             self.error(format!("expected = or ;, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
@@ -353,6 +354,7 @@ impl Parser {
 
     fn get_precidence(&self, token: &lexer::TokenType) -> i8 {
         match token {
+            lexer::TokenType::Assign => 1,
             lexer::TokenType::Or => 5,
             lexer::TokenType::And => 10,
             lexer::TokenType::Equal | lexer::TokenType::NotEqual => 30,
@@ -406,6 +408,14 @@ impl Parser {
             lexer::TokenType::LessThan | lexer::TokenType::GreaterThan |
             lexer::TokenType::LessThanEqual | lexer::TokenType::GreaterThanEqual |
             lexer::TokenType::And | lexer::TokenType::Or => true,
+            lexer::TokenType::Assign => true,
+            _ => false,
+        }
+    }
+
+    fn is_assignment(&self) -> bool {
+        match self.cur_token.kind {
+            lexer::TokenType::Assign => true,
             _ => false,
         }
     }
@@ -415,11 +425,27 @@ impl Parser {
         let prec = self.get_precidence(&self.cur_token.kind);
         while self.is_binop() &&
               prec >= min_prec {
-            
-            let operator = self.parse_binop();
-            self.next_token();
-            let right = self.parse_expression(prec + 1);
-            node = Box::new(nodes::Expression::BinOp(node, operator, right));
+
+            if self.is_assignment() {
+                let ident = match *node {
+                    nodes::Expression::Var(ref ident) => {
+                        ident.clone()
+                    },
+                    _ => {
+                        self.error("Expected identifier".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+                        panic!();
+                    },
+                };
+
+                self.next_token();
+                let right = self.parse_expression(prec + 1);
+                node = Box::new(nodes::Expression::Assignment(ident, right));
+            } else {
+                let operator = self.parse_binop();
+                self.next_token();
+                let right = self.parse_expression(prec + 1);
+                node = Box::new(nodes::Expression::BinOp(node, operator, right));
+            }
         }
         node
     }
@@ -466,33 +492,10 @@ impl Parser {
     fn parse_identifier(&mut self) -> Box<nodes::Expression> {
         let ident = self.cur_token.literal.clone();
         self.next_token();
-
-        if self.cur_token.kind != lexer::TokenType::LParen {
-            return Box::new(nodes::Expression::Identifier(nodes::Identifier {
-                value: ident,
-            }));
-        }
-
-        self.next_token();
-
-        let mut args: Vec<Box<nodes::Expression>> = vec![];
-
-        if self.cur_token.kind != lexer::TokenType::RParen {
-            loop  {
-                args.push(self.parse_expression(0));
-                
-                if self.cur_token.kind == lexer::TokenType::RParen {
-                    break;
-                }
-                if self.cur_token.kind != lexer::TokenType::Comma {
-                    self.error(format!("Expected RParen, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
-                }
-            }
-        }
-
-        self.next_token();
-
-        Box::new(nodes::Expression::FunctionCall(ident, args))
+        
+        Box::new(nodes::Expression::Var(nodes::Identifier {
+            value: ident,
+        }))
     }
 
 

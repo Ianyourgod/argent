@@ -4,7 +4,7 @@ wow todos for the argent language
 
 ## The List
 
-- [ ] Rewrite to use tacky and 3 pass compiler
+- [ ] Rewrite to use tacky and a lot of compiler passes
 - [ ] Match
 - [ ] Do while?
 - [ ] Option
