@@ -89,7 +89,6 @@ impl Pass {
                     return_value: self.resolve_expression(ret.return_value)
                 }))
             },
-
             _ => statement,
         }
     }

@@ -40,10 +40,10 @@ impl Pass {
 
     fn emit_instruction(&self, statement: &tacky::nodes::Instruction, instructions: &mut Vec<nodes::Instruction>) {
         match statement {
-            tacky::nodes::Instruction::Return(return_statement) => {
-                let return_value = self.emit_value(&return_statement.return_value);
+            tacky::nodes::Instruction::Return(return_value) => {
+                let value = self.emit_value(return_value);
                 instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                    src: return_value,
+                    src: value,
                     dest: nodes::Operand::Register(nodes::Reg::AX),
                     suffix: Some(LONG.to_string()),
                 }));

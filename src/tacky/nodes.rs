@@ -19,7 +19,7 @@ pub struct CompoundInstruction {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Instruction {
-    Return(Return),
+    Return(Value),
     Unary(Unary),
     Binary(Binary),
     Copy(Copy),
@@ -33,11 +33,6 @@ pub enum Instruction {
 pub struct Copy {
     pub src: Value,
     pub dest: Value,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Return {
-    pub return_value: Value,
 }
 
 #[derive(Debug, Clone, PartialEq)]

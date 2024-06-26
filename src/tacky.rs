@@ -45,6 +45,7 @@ impl Tacky {
                 instructions: Vec::new(),
             };
             self.emit_tacky_statement(&*statement.body, &mut instructions);
+            instructions.instructions.push(nodes::Instruction::Return(nodes::Value::Constant(0)));
             program.function_definitions.push(nodes::FunctionDefinition {
                 function_name: statement.function_name.clone(),
                 body: instructions,
@@ -58,9 +59,7 @@ impl Tacky {
         match statement {
             parser::nodes::Statement::ReturnStatement(return_statement) => {
                 let return_value = self.emit_tacky_expression(&*return_statement.return_value, instructions);
-                instructions.instructions.push(nodes::Instruction::Return(nodes::Return {
-                    return_value
-                }));
+                instructions.instructions.push(nodes::Instruction::Return(return_value));
             }
             parser::nodes::Statement::FunctionDeclaration(ref function_declaration) => {
                 let mut body = nodes::CompoundInstruction {

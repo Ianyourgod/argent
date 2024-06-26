@@ -186,7 +186,7 @@ impl Parser {
 
         let condition = self.parse_expression(0);
 
-        // todo: require braces
+        // todo: require braces, or else weird variable scoping issues
         let consequence = self.parse_statement();
         self.next_token();
         let alternative = if self.cur_token.kind == lexer::TokenType::Keyword && self.cur_token.literal == "else" {
@@ -354,7 +354,9 @@ impl Parser {
 
     fn get_precidence(&self, token: &lexer::TokenType) -> i8 {
         match token {
-            lexer::TokenType::Assign => 1,
+            lexer::TokenType::Assign | 
+            lexer::TokenType::AddAssign | lexer::TokenType::SubtractAssign |
+            lexer::TokenType::MultiplyAssign | lexer::TokenType::DivideAssign => 1,
             lexer::TokenType::Or => 5,
             lexer::TokenType::And => 10,
             lexer::TokenType::Equal | lexer::TokenType::NotEqual => 30,
@@ -408,14 +410,18 @@ impl Parser {
             lexer::TokenType::LessThan | lexer::TokenType::GreaterThan |
             lexer::TokenType::LessThanEqual | lexer::TokenType::GreaterThanEqual |
             lexer::TokenType::And | lexer::TokenType::Or => true,
-            lexer::TokenType::Assign => true,
+            lexer::TokenType::Assign |
+            lexer::TokenType::AddAssign | lexer::TokenType::SubtractAssign |
+            lexer::TokenType::MultiplyAssign | lexer::TokenType::DivideAssign => true,
             _ => false,
         }
     }
 
     fn is_assignment(&self) -> bool {
         match self.cur_token.kind {
-            lexer::TokenType::Assign => true,
+            lexer::TokenType::Assign |
+            lexer::TokenType::AddAssign | lexer::TokenType::SubtractAssign |
+            lexer::TokenType::MultiplyAssign | lexer::TokenType::DivideAssign => true,
             _ => false,
         }
     }
