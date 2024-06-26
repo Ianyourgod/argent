@@ -283,3 +283,113 @@ impl Pass {
         }
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tacky::{self, nodes::CompoundInstruction};
+
+    #[test]
+    fn test_emit() {
+        let tack = tacky::nodes::Program {
+            function_definitions: vec![
+                tacky::nodes::FunctionDefinition {
+                    function_name: "main".to_string(),
+                    return_type: "int".to_string(),
+                    body: CompoundInstruction {
+                        instructions: vec![
+                            tacky::nodes::Instruction::Return(tacky::nodes::Value::Constant(0))
+                        ]
+                    }
+                }
+            ]
+        };
+
+        let pass = Pass::new(&tack);
+        let program = pass.run();
+
+        assert_eq!(program.statements.len(), 1);
+        assert_eq!(program.statements[0].function_name, "main".to_string());
+        assert_eq!(program.statements[0].return_type, "int".to_string());
+        assert_eq!(program.statements[0].context, nodes::Context { var_map: std::collections::HashMap::new(), stack_offset: 4 });
+        assert_eq!(program.statements[0].instructions.len(), 2);
+        assert_eq!(program.statements[0].instructions[0], nodes::Instruction::Mov(nodes::BinOp {
+            src: nodes::Operand::Immediate(0),
+            dest: nodes::Operand::Register(nodes::Reg::AX),
+            suffix: Some(LONG.to_string()),
+        }));
+        assert_eq!(program.statements[0].instructions[1], nodes::Instruction::Ret);
+    }
+
+    #[test]
+    fn test_emit_unary() {
+        let tack = tacky::nodes::Program {
+            function_definitions: vec![
+                tacky::nodes::FunctionDefinition {
+                    function_name: "main".to_string(),
+                    return_type: "int".to_string(),
+                    body: CompoundInstruction {
+                        instructions: vec![
+                            tacky::nodes::Instruction::Unary(tacky::nodes::Unary {
+                                operator: tacky::nodes::UnaryOperator::Negate,
+                                src: tacky::nodes::Value::Constant(1),
+                                dest: tacky::nodes::Value::Identifier("a".to_string()),
+                            })
+                        ]
+                    }
+                }
+            ]
+        };
+
+        let pass = Pass::new(&tack);
+        let program = pass.run();
+
+        assert_eq!(program.statements.len(), 1);
+        assert_eq!(program.statements[0].function_name, "main".to_string());
+        assert_eq!(program.statements[0].return_type, "int".to_string());
+        assert_eq!(program.statements[0].context, nodes::Context { var_map: std::collections::HashMap::new(), stack_offset: 4 });
+    }
+
+    #[test]
+    fn test_emit_binary() {
+        let tack = tacky::nodes::Program {
+            function_definitions: vec![
+                tacky::nodes::FunctionDefinition {
+                    function_name: "main".to_string(),
+                    return_type: "int".to_string(),
+                    body: CompoundInstruction {
+                        instructions: vec![
+                            tacky::nodes::Instruction::Binary(tacky::nodes::Binary {
+                                operator: tacky::nodes::BinaryOperator::Add,
+                                src1: tacky::nodes::Value::Constant(1),
+                                src2: tacky::nodes::Value::Constant(2),
+                                dest: tacky::nodes::Value::Identifier("a".to_string()),
+                            })
+                        ]
+                    }
+                }
+            ]
+        };
+
+        let pass = Pass::new(&tack);
+        let program = pass.run();
+
+        assert_eq!(program.statements.len(), 1);
+        assert_eq!(program.statements[0].function_name, "main".to_string());
+        assert_eq!(program.statements[0].return_type, "int".to_string());
+        assert_eq!(program.statements[0].context, nodes::Context { var_map: std::collections::HashMap::new(), stack_offset: 4 });
+        
+        assert_eq!(program.statements[0].instructions.len(), 2);
+        assert_eq!(program.statements[0].instructions[0], nodes::Instruction::Mov(nodes::BinOp {
+            src: nodes::Operand::Immediate(1),
+            dest: nodes::Operand::Pseudo(nodes::Identifier { name: "a".to_string() }),
+            suffix: Some(LONG.to_string()),
+        }));
+        assert_eq!(program.statements[0].instructions[1], nodes::Instruction::Add(nodes::BinOp {
+            src: nodes::Operand::Immediate(2),
+            dest: nodes::Operand::Pseudo(nodes::Identifier { name: "a".to_string() }),
+            suffix: Some(LONG.to_string()),
+        }));
+    }
+}
