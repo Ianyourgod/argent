@@ -2,7 +2,6 @@ use crate::parser::nodes;
 
 pub struct Pass {
     pub program: nodes::Program,
-    pub error_func: Option<fn(String, String, String, usize, usize, usize, Option<i32>)>,
     context: Context,
 }
 
@@ -20,7 +19,7 @@ impl Context {
 
 impl Pass {
     pub fn new(program: &nodes::Program) -> Pass {
-        Pass { program: program.clone(), error_func: None, context: Context::new() }
+        Pass { program: program.clone(), context: Context::new() }
     }
 
     pub fn run(&mut self) -> nodes::Program {
