@@ -56,7 +56,6 @@ fn compile_program(input: String, input_name: String, outfile_name: &String, inc
 
     if include_output {
         println!("{} {}", "Finished".bright_green(), input_name);
-        println!("{} {}", "Running".bright_green(), outfile_name);
 
         let stdout = std::str::from_utf8(&output.stdout).unwrap();
         let stderr = std::str::from_utf8(&output.stderr).unwrap();
@@ -142,6 +141,8 @@ fn main() {
                 let input = op_input.unwrap();
 
                 compile_program(input, copied_filename, &outfile_name, true);
+
+                println!("{} {}", "Running".bright_green(), outfile_name);
 
                 let outfile_name_cstr = CString::new(outfile_name).expect("CString::new failed");
                 let err = execvp::<&CStr>(&outfile_name_cstr, &[]);
