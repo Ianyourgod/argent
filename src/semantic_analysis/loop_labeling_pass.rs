@@ -59,7 +59,8 @@ impl Pass {
 
 
                 let old_label = context.label.clone();
-                context.label = Some(context.label_count.to_string());
+                let new_label = context.label_count.to_string();
+                context.label = Some(new_label.clone());
                 context.label_count += 1;
 
                 let mut new_body_statements: Vec<Box<nodes::Statement>> = Vec::new();
@@ -75,7 +76,7 @@ impl Pass {
                     body: Box::new(nodes::Statement::Compound(nodes::CompoundStatement {
                         statements: new_body_statements,
                     })),
-                    label: while_statement.label.clone(),
+                    label: new_label,
                 })));
             },
             nodes::Statement::BreakStatement(_) => {

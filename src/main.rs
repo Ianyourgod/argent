@@ -2,6 +2,7 @@
 
 use nix::unistd::execvp;
 use std::{ffi::{CStr, CString}, process::exit};
+use colored::Colorize;
 
 mod lexer;
 mod parser;
@@ -54,6 +55,8 @@ fn compile_program(input: String, input_name: String, outfile_name: &String, inc
         .expect("failed to assemble");
 
     if include_output {
+        println!("{} {}", "Finished".bright_green(), outfile_name);
+
         let stdout = std::str::from_utf8(&output.stdout).unwrap();
         let stderr = std::str::from_utf8(&output.stderr).unwrap();
 

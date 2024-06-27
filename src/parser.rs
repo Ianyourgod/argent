@@ -229,6 +229,8 @@ impl Parser {
         if self.cur_token.kind != lexer::TokenType::SemiColon {
             self.error("unexpected character, expected semicolon".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
         }
+        self.next_token();
+
         Box::new(nodes::Statement::BreakStatement("".to_string()))
     }
 
@@ -237,6 +239,8 @@ impl Parser {
         if self.cur_token.kind != lexer::TokenType::SemiColon {
             self.error("unexpected character, expected semicolon".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
         }
+        self.next_token();
+
         Box::new(nodes::Statement::ContinueStatement("".to_string()))
     }
 
@@ -343,9 +347,10 @@ impl Parser {
 
     fn parse_expression_statement(&mut self) -> Box<nodes::Statement> {
         let expression = self.parse_expression(0);
-        while self.cur_token.kind != lexer::TokenType::SemiColon {
-            self.next_token();
+        if self.cur_token.kind != lexer::TokenType::SemiColon {
+            self.error(format!("Expected SemiColon, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
         }
+        self.next_token();
 
         Box::new(nodes::Statement::ExpressionStatement(nodes::ExpressionStatement {
             expression
@@ -443,8 +448,31 @@ impl Parser {
                     },
                 };
 
+                let op_token = self.cur_token.kind.clone();
+
                 self.next_token();
-                let right = self.parse_expression(prec + 1);
+
+                let parsed_expr = self.parse_expression(prec + 1);
+
+                let right = match op_token {
+                    lexer::TokenType::Assign => {
+                        parsed_expr
+                    },
+                    lexer::TokenType::AddAssign => {
+                        Box::new(nodes::Expression::BinOp(node.clone(), nodes::BinOp::Add, parsed_expr))
+                    },
+                    lexer::TokenType::SubtractAssign => {
+                        Box::new(nodes::Expression::BinOp(node.clone(), nodes::BinOp::Subtract, parsed_expr))
+                    },
+                    lexer::TokenType::MultiplyAssign => {
+                        Box::new(nodes::Expression::BinOp(node.clone(), nodes::BinOp::Multiply, parsed_expr))
+                    },
+                    lexer::TokenType::DivideAssign => {
+                        Box::new(nodes::Expression::BinOp(node.clone(), nodes::BinOp::Divide, parsed_expr))
+                    },
+                    _ => unreachable!(),
+                };
+
                 node = Box::new(nodes::Expression::Assignment(ident, right));
             } else {
                 let operator = self.parse_binop();
@@ -453,6 +481,7 @@ impl Parser {
                 node = Box::new(nodes::Expression::BinOp(node, operator, right));
             }
         }
+
         node
     }
 

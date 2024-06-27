@@ -40,6 +40,7 @@ impl Tacky {
             function_definitions: Vec::new(),
         };
         let func_defs = self.ast.function_definitions.clone();
+
         for statement in func_defs {
             let mut instructions = nodes::CompoundInstruction {
                 instructions: Vec::new(),
@@ -109,7 +110,31 @@ impl Tacky {
                 } else {
                     instructions.instructions.push(nodes::Instruction::Label(else_label)); // misnomer, this is the end of the if block
                 }
-            }
+            },
+            parser::nodes::Statement::WhileStatement(ref while_statement) => {
+                let start_label = format!(".L_continue_{}", while_statement.label);
+                let end_label = format!(".L_break_{}", while_statement.label);
+                instructions.instructions.push(nodes::Instruction::Label(start_label.clone()));
+                let cond = self.make_temporary();
+                let condition = self.emit_tacky_expression(&*while_statement.condition, instructions);
+                instructions.instructions.push(nodes::Instruction::Copy(nodes::Copy {
+                    src: condition,
+                    dest: nodes::Value::Identifier(cond.clone()),
+                }));
+                instructions.instructions.push(nodes::Instruction::JumpIfZero(
+                    end_label.clone(),
+                    nodes::Value::Identifier(cond),
+                ));
+                self.emit_tacky_statement(&*while_statement.body, instructions);
+                instructions.instructions.push(nodes::Instruction::Jump(start_label));
+                instructions.instructions.push(nodes::Instruction::Label(end_label));
+            },
+            parser::nodes::Statement::BreakStatement(ref label) => {
+                instructions.instructions.push(nodes::Instruction::Jump(format!(".L_break_{}", label)));
+            },
+            parser::nodes::Statement::ContinueStatement(ref label) => {
+                instructions.instructions.push(nodes::Instruction::Jump(format!(".L_continue_{}", label)));
+            },
             _ => panic!("Not implemented yet: {:?}", statement)
         };
     }
@@ -190,7 +215,15 @@ impl Tacky {
             parser::nodes::Expression::Var(ident) => {
                 nodes::Value::Identifier(ident.value.clone())
             }
-            _ => panic!("Not implemented yet")
+            parser::nodes::Expression::Assignment(ident, exp) => {
+                let value = self.emit_tacky_expression(&*exp, instructions);
+                instructions.instructions.push(nodes::Instruction::Copy(nodes::Copy {
+                    src: value.clone(),
+                    dest: nodes::Value::Identifier(ident.value.clone()),
+                }));
+                value
+            }
+            item => panic!("Not implemented yet: {:?}", item)
         }
     }
 }
@@ -289,7 +322,6 @@ mod tests {
         assert_eq!(program.function_definitions.len(), 1);
         assert_eq!(program.function_definitions[0].function_name, "main");
         assert_eq!(program.function_definitions[0].return_type, "int");
-        println!("{:?}", program.function_definitions[0].body.instructions);
         assert_eq!(program.function_definitions[0].body.instructions.len(), 3);
         assert_eq!(program.function_definitions[0].body.instructions[0], nodes::Instruction::Unary(nodes::Unary {
             operator: nodes::UnaryOperator::Negate,
