@@ -5,14 +5,16 @@ wow todos for the argent language
 ## The List
 
 - [ ] Rewrite to use tacky and a lot of compiler passes
-- [ ] Match
+- [ ] Pattern matching
 - [ ] Do while?
-- [ ] Option
 - [ ] Pointers
 - [ ] Type checking
 - [ ] Structs
   - [ ] Enums
+    - [ ] Option
   - [ ] Implementations
     - [ ] Iterators
       - [ ] for loop
   - [ ] Traits
+    - [ ] Derive
+- [ ] more tests

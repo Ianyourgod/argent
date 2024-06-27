@@ -81,7 +81,7 @@ impl Parser {
     pub fn parse_program(&mut self) -> nodes::Program {
         let mut program = nodes::Program { function_definitions: vec![] };
         while self.cur_token.kind != lexer::TokenType::EOF {
-            let stmt = self.parse_function_declaration();
+            let stmt = self.parse_top_level_statement();
             let fn_def = match *stmt {
                 nodes::Statement::FunctionDeclaration(ref f) => f,
                 _ => {
@@ -96,12 +96,29 @@ impl Parser {
         program
     }
 
+    fn parse_top_level_statement(&mut self) -> Box<nodes::Statement> {
+        match self.cur_token.kind {
+            lexer::TokenType::Keyword => {
+                match self.cur_token.literal.as_str() {
+                    "fn" => self.parse_function_declaration(),
+                    _ => {
+                        self.error("unexpected token".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+                        panic!();
+                    },
+                }
+            },
+            _ => {
+                self.error("unexpected token".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+                panic!();
+            },
+        }
+    }
+
     fn parse_statement(&mut self) -> Box<nodes::Statement> {
         match self.cur_token.kind {
             lexer::TokenType::Keyword => {
                 match self.cur_token.literal.as_str() {
                     "return" => self.parse_return_statement(),
-                    "fn" => self.parse_function_declaration(),
                     "let" => self.parse_variable_declaration(),
                     "if" => self.parse_if_statement(),
                     "while" => self.parse_while_statement(),

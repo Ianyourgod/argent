@@ -25,7 +25,7 @@ fn compile_program(input: String, input_name: String, outfile_name: &String, inc
     let lexer = lexer::Lexer::new(input.clone());
     let mut parser = parser::Parser::new(lexer);
 
-    parser.input_name = input_name;
+    parser.input_name = input_name.clone();
     parser.error_func = Some(error);
 
     let program = parser.parse_program();
@@ -55,7 +55,8 @@ fn compile_program(input: String, input_name: String, outfile_name: &String, inc
         .expect("failed to assemble");
 
     if include_output {
-        println!("{} {}", "Finished".bright_green(), outfile_name);
+        println!("{} {}", "Finished".bright_green(), input_name);
+        println!("{} {}", "Running".bright_green(), outfile_name);
 
         let stdout = std::str::from_utf8(&output.stdout).unwrap();
         let stderr = std::str::from_utf8(&output.stderr).unwrap();
