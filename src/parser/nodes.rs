@@ -11,8 +11,8 @@ pub enum Statement {
     ExpressionStatement(ExpressionStatement),
     IfStatement(IfStatement),
     WhileStatement(WhileStatement),
-    BreakStatement,
-    ContinueStatement,
+    BreakStatement(String),
+    ContinueStatement(String),
     FunctionDeclaration(FunctionDeclaration),
     VariableDeclaration(VariableDeclaration),
     Compound(CompoundStatement),
@@ -40,6 +40,7 @@ pub struct IfStatement {
 pub struct WhileStatement {
     pub condition: Box<Expression>,
     pub body: Box<Statement>,
+    pub label: String,
 }
 
 #[derive(Debug, Clone, PartialEq)]

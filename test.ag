@@ -1,5 +1,8 @@
 fn main(argc: int) -> int {
-    let a: int = 6;
-    let b: int = 5;
-    return a*b;
+    let skibidi: int = 0;
+    if skibidi {
+        return 1;
+    } else {
+        return 0;
+    }
 }

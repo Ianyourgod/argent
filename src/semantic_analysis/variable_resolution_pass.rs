@@ -2,27 +2,44 @@ use crate::parser::nodes;
 
 pub struct Pass {
     pub program: nodes::Program,
-    context: Context,
 }
 
+#[derive(Clone)]
 pub struct Context {
-    pub var_map: std::collections::HashMap<String, String>,
+    pub var_map: VarMap,
+}
+
+pub struct VarMap {
+    pub map: std::collections::HashMap<String, (String, bool)>,
     pub tmp_n: i32,
+}
+
+impl Clone for VarMap {
+    fn clone(&self) -> VarMap {
+        let mut new_map = self.map.clone();
+        for (key, value) in self.map.iter() {
+            new_map.insert(key.clone(), (value.0.clone(), false));
+        }
+
+        VarMap {
+            map: new_map,
+            tmp_n: self.tmp_n,
+        }
+    }
 }
 
 impl Context {
     fn new() -> Context {
-        Context { var_map: std::collections::HashMap::new(), tmp_n: -1 }
+        Context { var_map: VarMap { map: std::collections::HashMap::new(), tmp_n: -1 } }
     }
-
 }
 
 impl Pass {
     pub fn new(program: &nodes::Program) -> Pass {
-        Pass { program: program.clone(), context: Context::new() }
+        Pass { program: program.clone() }
     }
 
-    pub fn run(&mut self) -> nodes::Program {
+    pub fn run(&self) -> nodes::Program {
         let mut program = nodes::Program {
             function_definitions: Vec::new(),
         };
@@ -35,8 +52,10 @@ impl Pass {
 
             let mut statements: Vec<Box<nodes::Statement>> = Vec::new();
 
+            let mut context = Context::new();
+
             for statement in body.statements {
-                statements.push(self.resolve_statement(statement));
+                statements.push(self.resolve_statement(statement, &mut context));
             }
 
             let new_function = nodes::FunctionDeclaration {
@@ -54,65 +73,102 @@ impl Pass {
         program
     }
 
-    fn make_temporary(&mut self) -> String {
-        self.context.tmp_n += 1;
-        format!(".localvar{}", self.context.tmp_n)
+    fn make_temporary(&self, context: &mut Context) -> String {
+        context.var_map.tmp_n += 1;
+        format!(".localvar{}", context.var_map.tmp_n)
     }
 
-    fn resolve_statement(&mut self, statement: Box<nodes::Statement>) -> Box<nodes::Statement> {
+    fn resolve_statement(&self, statement: Box<nodes::Statement>, context: &mut Context) -> Box<nodes::Statement> {
         match *statement {
             nodes::Statement::VariableDeclaration(decl) => {
-                if self.context.var_map.contains_key(&decl.ident.value) {
+                if context.var_map.map.contains_key(&decl.ident.value) && context.var_map.map.get(&decl.ident.value).unwrap().1 {
                     panic!("Variable {} already declared in scope", decl.ident.value);
                 }
 
-                let new_ident = self.make_temporary();
+                let new_ident = self.make_temporary(context);
 
-                self.context.var_map.insert(decl.ident.value.clone(), new_ident.clone());
+                context.var_map.map.insert(decl.ident.value.clone(), (new_ident.clone(), true));
 
                 let new_decl = nodes::VariableDeclaration {
                     kind: decl.kind.clone(),
                     ident: nodes::Identifier { value: new_ident },
-                    expr: if decl.expr.is_some() { Some(self.resolve_expression(decl.expr.unwrap())) } else { None },
+                    expr: if decl.expr.is_some() { Some(self.resolve_expression(decl.expr.unwrap(), context)) } else { None },
                 };
 
                 Box::new(nodes::Statement::VariableDeclaration(new_decl))
             },
             nodes::Statement::ExpressionStatement(expr) => {
                 Box::new(nodes::Statement::ExpressionStatement(nodes::ExpressionStatement {
-                    expression: self.resolve_expression(expr.expression)
+                    expression: self.resolve_expression(expr.expression, context)
                 }))
             },
             nodes::Statement::ReturnStatement(ret) => {
                 Box::new(nodes::Statement::ReturnStatement(nodes::ReturnStatement {
-                    return_value: self.resolve_expression(ret.return_value)
+                    return_value: self.resolve_expression(ret.return_value, context)
+                }))
+            },
+            nodes::Statement::Compound(compound) => {
+                let mut statements: Vec<Box<nodes::Statement>> = Vec::new();
+
+                let mut new_context = context.clone();
+
+                for statement in compound.statements {
+                    statements.push(self.resolve_statement(statement, &mut new_context));
+                }
+
+                Box::new(nodes::Statement::Compound(nodes::CompoundStatement {
+                    statements,
+                }))
+            },
+            nodes::Statement::FunctionDeclaration(func) => {
+                Box::new(nodes::Statement::FunctionDeclaration(nodes::FunctionDeclaration {
+                    function_name: func.function_name.clone(),
+                    return_type: func.return_type.clone(),
+                    params: func.params.clone(),
+                    body: self.resolve_statement(func.body, context),
+                }))
+            },
+            nodes::Statement::IfStatement(ifstmt) => {
+                Box::new(nodes::Statement::IfStatement(nodes::IfStatement {
+                    condition: self.resolve_expression(ifstmt.condition, context),
+                    consequence: self.resolve_statement(ifstmt.consequence, context),
+                    alternative: if ifstmt.alternative.is_some() { Some(self.resolve_statement(ifstmt.alternative.unwrap(), context)) } else { None },
+                }))
+            },
+            nodes::Statement::WhileStatement(whilestmt) => {
+                let mut new_context = context.clone();
+
+                Box::new(nodes::Statement::WhileStatement(nodes::WhileStatement {
+                    condition: self.resolve_expression(whilestmt.condition, &mut new_context),
+                    body: self.resolve_statement(whilestmt.body, &mut new_context),
+                    label: whilestmt.label.clone(),
                 }))
             },
             _ => statement,
         }
     }
 
-    fn resolve_expression(&mut self, expr: Box<nodes::Expression>) -> Box<nodes::Expression> {
+    fn resolve_expression(&self, expr: Box<nodes::Expression>, context: &mut Context) -> Box<nodes::Expression> {
         match *expr {
             nodes::Expression::Var(ref ident) => {
-                if self.context.var_map.contains_key(&ident.value) {
-                    Box::new(nodes::Expression::Var(nodes::Identifier { value: self.context.var_map.get(&ident.value).unwrap().clone() }))
+                if context.var_map.map.contains_key(&ident.value) {
+                    Box::new(nodes::Expression::Var(nodes::Identifier { value: context.var_map.map.get(&ident.value).unwrap().clone().0 }))
                 } else {
                     panic!("Variable {} not found in scope", ident.value);
                 }
             },
             nodes::Expression::Assignment(ref ident, ref expr) => {
-                if self.context.var_map.contains_key(&ident.value) {
-                    Box::new(nodes::Expression::Assignment(nodes::Identifier { value: self.context.var_map.get(&ident.value).unwrap().clone() }, self.resolve_expression(expr.clone())))
+                if context.var_map.map.contains_key(&ident.value) {
+                    Box::new(nodes::Expression::Assignment(nodes::Identifier { value: context.var_map.map.get(&ident.value).unwrap().clone().0 }, self.resolve_expression(expr.clone(), context)))
                 } else {
                     panic!("Variable {} not found in scope", ident.value);
                 }
             },
             nodes::Expression::BinOp(ref left, ref op, ref right) => {
-                Box::new(nodes::Expression::BinOp(self.resolve_expression(left.clone()), op.clone(), self.resolve_expression(right.clone())))
+                Box::new(nodes::Expression::BinOp(self.resolve_expression(left.clone(), context), op.clone(), self.resolve_expression(right.clone(), context)))
             },
             nodes::Expression::UnaryOp(ref op, ref expr) => {
-                Box::new(nodes::Expression::UnaryOp(op.clone(), self.resolve_expression(expr.clone())))
+                Box::new(nodes::Expression::UnaryOp(op.clone(), self.resolve_expression(expr.clone(), context)))
             },
             _ => expr,
         }
@@ -149,7 +205,7 @@ mod tests {
             ],
         };
 
-        let mut pass = Pass::new(&program);
+        let pass = Pass::new(&program);
         let new_program = pass.run();
 
         assert_eq!(new_program.function_definitions[0].body, Box::new(nodes::Statement::Compound(nodes::CompoundStatement {
@@ -193,7 +249,7 @@ mod tests {
             ],
         };
 
-        let mut pass = Pass::new(&program);
+        let pass = Pass::new(&program);
         pass.run();
     }
 
@@ -221,7 +277,7 @@ mod tests {
             ],
         };
 
-        let mut pass = Pass::new(&program);
+        let pass = Pass::new(&program);
         let new_program = pass.run();
 
         assert_eq!(new_program.function_definitions[0].body, Box::new(nodes::Statement::Compound(nodes::CompoundStatement {
@@ -258,7 +314,7 @@ mod tests {
             ],
         };
 
-        let mut pass = Pass::new(&program);
+        let pass = Pass::new(&program);
         pass.run();
     }
 }

@@ -36,7 +36,6 @@ impl Parser {
 
         let trimmed_line = error_line.trim_start();
         let error_text = if line > 0 {
-            println!("line: {}", line);
             let mut out = lines[line - 1].split_at(error_line.len()-trimmed_line.len()).1.to_string();
             out.push_str("\n");
             out.push_str(trimmed_line);
@@ -128,6 +127,7 @@ impl Parser {
         if self.cur_token.kind != lexer::TokenType::SemiColon {
             self.error("unexpected character, expected semicolon".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
         }
+        self.next_token();
 
         Box::new(nodes::Statement::ReturnStatement(nodes::ReturnStatement {
             return_value
@@ -164,12 +164,14 @@ impl Parser {
             if self.cur_token.kind != lexer::TokenType::SemiColon {
                 self.error("unexpected character, expected semicolon".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
             }
+            self.next_token();
             Box::new(nodes::Statement::VariableDeclaration(nodes::VariableDeclaration {
                 kind,
                 ident: nodes::Identifier { value: ident },
                 expr: Some(expr),
             }))
         } else if self.cur_token.kind == lexer::TokenType::SemiColon {
+            self.next_token();
             Box::new(nodes::Statement::VariableDeclaration(nodes::VariableDeclaration {
                 kind,
                 ident: nodes::Identifier { value: ident },
@@ -186,15 +188,18 @@ impl Parser {
 
         let condition = self.parse_expression(0);
 
-        // todo: require braces, or else weird variable scoping issues
+        if self.cur_token.kind != lexer::TokenType::LBrace {
+            self.error("unexpected character, expected LBrace".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+        }
         let consequence = self.parse_statement();
-        self.next_token();
+
         let alternative = if self.cur_token.kind == lexer::TokenType::Keyword && self.cur_token.literal == "else" {
             self.next_token();
             Some(self.parse_statement())
         } else {
             None
         };
+
         Box::new(nodes::Statement::IfStatement(nodes::IfStatement {
             condition,
             consequence,
@@ -207,12 +212,15 @@ impl Parser {
 
         let condition = self.parse_expression(0);
 
-        // todo: require braces
+        if self.cur_token.kind != lexer::TokenType::LBrace {
+            self.error("unexpected character, expected LBrace".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+        }
         let body = self.parse_statement();
 
         Box::new(nodes::Statement::WhileStatement(nodes::WhileStatement {
             condition,
             body,
+            label: "".to_string(),
         }))
     }
 
@@ -221,7 +229,7 @@ impl Parser {
         if self.cur_token.kind != lexer::TokenType::SemiColon {
             self.error("unexpected character, expected semicolon".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
         }
-        Box::new(nodes::Statement::BreakStatement)
+        Box::new(nodes::Statement::BreakStatement("".to_string()))
     }
 
     fn parse_continue_statement(&mut self) -> Box<nodes::Statement> {
@@ -229,7 +237,7 @@ impl Parser {
         if self.cur_token.kind != lexer::TokenType::SemiColon {
             self.error("unexpected character, expected semicolon".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
         }
-        Box::new(nodes::Statement::ContinueStatement)
+        Box::new(nodes::Statement::ContinueStatement("".to_string()))
     }
 
     fn parse_function_declaration(&mut self) -> Box<nodes::Statement> {
@@ -298,21 +306,13 @@ impl Parser {
         self.next_token();
 
         if self.cur_token.kind != lexer::TokenType::Identifier || self.cur_token.literal != "int" {
-            self.error(format!("expected int, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+            self.error(format!("expected type, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
         }
 
         let kind = self.cur_token.literal.clone();
 
         self.next_token();
 
-        if self.cur_token.kind == lexer::TokenType::SemiColon {
-            return Box::new(nodes::Statement::FunctionDeclaration(nodes::FunctionDeclaration {
-                function_name,
-                params: args,
-                body: Box::new(nodes::Statement::Empty),
-                return_type: kind,
-            }));
-        }
         if self.cur_token.kind != lexer::TokenType::LBrace {
             self.error(format!("expected LBrace, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
         }
@@ -333,11 +333,11 @@ impl Parser {
         while self.cur_token.kind != lexer::TokenType::RBrace  {
             let stmt = self.parse_statement();
             block.statements.push(stmt);
-            self.next_token();
             if self.cur_token.kind == lexer::TokenType::EOF {
                 self.error(format!("Expected RBrace, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
             }
         }
+        self.next_token();
         Box::new(nodes::Statement::Compound(block))
     }
 
@@ -564,6 +564,44 @@ mod tests {
                 assert_eq!(f.function_name, "main");
                 assert_eq!(f.params.len(), 2);
                 assert_eq!(f.return_type, "int");
+            },
+            _ => panic!("expected function declaration"),
+        }
+    }
+
+    #[test]
+    fn test_parse_if_with_return_after() {
+        let input = r#"
+        fn main() -> int {
+            if 1 == 1 {}
+            return 6;
+        }
+        "#;
+
+        let lexer = Lexer::new(input.to_string());
+        let mut parser = Parser::new(lexer);
+        let stmt = parser.parse_function_declaration();
+
+        match *stmt {
+            nodes::Statement::FunctionDeclaration(ref f) => {
+                match *f.body {
+                    nodes::Statement::Compound(ref c) => {
+                        assert_eq!(c.statements.len(), 2);
+                        assert_eq!(c.statements[0], Box::new(nodes::Statement::IfStatement(nodes::IfStatement {
+                            condition: Box::new(nodes::Expression::BinOp(
+                                Box::new(nodes::Expression::Literal(nodes::Literal::Int(1))),
+                                nodes::BinOp::Equal,
+                                Box::new(nodes::Expression::Literal(nodes::Literal::Int(1)))
+                            )),
+                            consequence: Box::new(nodes::Statement::Compound(nodes::CompoundStatement { statements: vec![] })),
+                            alternative: None,
+                        })));
+                        assert_eq!(c.statements[1], Box::new(nodes::Statement::ReturnStatement(nodes::ReturnStatement {
+                            return_value: Box::new(nodes::Expression::Literal(nodes::Literal::Int(6)))
+                        })));
+                    },
+                    _ => panic!("expected compound statement"),
+                }
             },
             _ => panic!("expected function declaration"),
         }

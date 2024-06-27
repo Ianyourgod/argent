@@ -52,6 +52,7 @@ impl Tacky {
                 return_type: statement.return_type.clone(),
             });
         }
+
         program
     }
 
@@ -85,6 +86,29 @@ impl Tacky {
                     src: value,
                     dest: var,
                 }));
+            }
+            parser::nodes::Statement::IfStatement(ref if_statement) => {
+                let cond = self.make_temporary();
+                let else_label = self.make_label();
+                let condition = self.emit_tacky_expression(&*if_statement.condition, instructions);
+                instructions.instructions.push(nodes::Instruction::Copy(nodes::Copy {
+                    src: condition,
+                    dest: nodes::Value::Identifier(cond.clone()),
+                }));
+                instructions.instructions.push(nodes::Instruction::JumpIfZero(
+                    else_label.clone(),
+                    nodes::Value::Identifier(cond),
+                ));
+                self.emit_tacky_statement(&*if_statement.consequence, instructions);
+                if if_statement.alternative.is_some() {
+                    let end_label = self.make_label();
+                    instructions.instructions.push(nodes::Instruction::Jump(end_label.clone()));
+                    instructions.instructions.push(nodes::Instruction::Label(else_label));
+                    self.emit_tacky_statement(&*if_statement.alternative.as_ref().unwrap(), instructions);
+                    instructions.instructions.push(nodes::Instruction::Label(end_label));
+                } else {
+                    instructions.instructions.push(nodes::Instruction::Label(else_label)); // misnomer, this is the end of the if block
+                }
             }
             _ => panic!("Not implemented yet: {:?}", statement)
         };
