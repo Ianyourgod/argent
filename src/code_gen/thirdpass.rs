@@ -17,7 +17,7 @@ impl Pass {
         for function in self.program.statements.clone() {
             let mut instructions: Vec<nodes::Instruction> = Vec::new();
             
-            instructions.push(nodes::Instruction::AllocateStack(function.context.stack_offset));
+            instructions.push(nodes::Instruction::AllocateStack((function.context.stack_offset + 15) & !15)); // Align stack to 16 bytes
 
             for statement in function.instructions {
                 self.emit_instruction(&statement, &mut instructions);
@@ -34,7 +34,7 @@ impl Pass {
         program
     }
 
-    fn args_are_memory(&self, arg1: &nodes::Operand, arg2: &nodes::Operand) -> (bool, usize, usize) {
+    fn args_are_memory(&self, arg1: &nodes::Operand, arg2: &nodes::Operand) -> (bool, isize, isize) {
         match arg1 {
             nodes::Operand::StackAllocate(idx1) => {
                 match arg2 {

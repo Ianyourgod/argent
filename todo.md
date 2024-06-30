@@ -4,11 +4,10 @@ wow todos for the argent language
 
 ## The List
 
-- [ ] Rewrite to use tacky and a lot of compiler passes
+- [x] Rewrite to use tacky and a lot of compiler passes
 - [ ] Pattern matching
 - [ ] Do while?
-- [ ] Pointers
-- [ ] Type checking
+- [x] Type checking
 - [ ] Structs
   - [ ] Enums
     - [ ] Option
@@ -18,3 +17,14 @@ wow todos for the argent language
   - [ ] Traits
     - [ ] Derive
 - [ ] more tests
+- [ ] more types
+  - [ ] long int
+  - [ ] float
+  - [ ] double
+  - [ ] pointers
+  - [ ] arrays
+  - [ ] strings
+    - [ ] c strings
+    - [ ] awesome strings (like rust)
+      - [ ] string slices
+      - [ ] string literals

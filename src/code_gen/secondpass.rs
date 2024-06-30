@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::code_gen::nodes;
 
 pub struct Pass {
@@ -17,22 +15,25 @@ impl Pass {
         };
 
         for function in self.program.statements.clone() {
-            let mut instructions: Vec<nodes::Instruction> = Vec::new();
-            let mut context = nodes::Context { var_map: HashMap::new(), stack_offset: 8 };
-            
-            for statement in function.instructions {
-                self.emit_instruction(&statement, &mut instructions, &mut context);
-            }
-
-            program.statements.push(nodes::FunctionDefinition::new(
-                function.function_name.clone(),
-                instructions,
-                context,
-                function.return_type.clone(),
-            ));
+            self.emit_function_definition(function, &mut program);
         }
 
         program
+    }
+
+    fn emit_function_definition(&mut self, mut function: nodes::FunctionDefinition, program: &mut nodes::Program) {
+        let mut instructions: Vec<nodes::Instruction> = Vec::new();
+
+        for statement in &function.instructions {
+            self.emit_instruction(statement, &mut instructions, &mut function.context);
+        }
+
+        program.statements.push(nodes::FunctionDefinition::new(
+            function.function_name.clone(),
+            instructions,
+            function.context,
+            function.return_type.clone(),
+        ));
     }
 
     fn emit_instruction(&mut self, statement: &nodes::Instruction, instructions: &mut Vec<nodes::Instruction>, context: &mut nodes::Context) {
@@ -108,6 +109,14 @@ impl Pass {
 
                 instructions.push(nodes::Instruction::SetCC(cond_code.clone(), operand));
             },
+            nodes::Instruction::Push(ref push) => {
+                let operand = self.emit_operand(&push.operand, instructions, context);
+
+                instructions.push(nodes::Instruction::Push(nodes::UnaryOp {
+                    operand,
+                    suffix: push.suffix.clone(),
+                }));
+            },
             _ => {
                 instructions.push(statement.clone());
             },
@@ -120,12 +129,12 @@ impl Pass {
                 let offset = context.var_map.get(&identifier.name);
                 match offset {
                     Some(offset) => {
-                        nodes::Operand::StackAllocate(*offset)
+                        nodes::Operand::StackAllocate(*offset as isize)
                     },
                     None => {
                         context.stack_offset += 4;
                         context.var_map.insert(identifier.name.clone(), context.stack_offset);
-                        nodes::Operand::StackAllocate(context.stack_offset)
+                        nodes::Operand::StackAllocate(context.stack_offset as isize)
                     },
                 }
             },

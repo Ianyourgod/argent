@@ -9,7 +9,8 @@ pub struct Program {
 pub struct FunctionDefinition {
     pub function_name: String,
     pub body: CompoundInstruction,
-    pub return_type: String,
+    pub arguments: Vec<(String, Type)>,
+    pub return_type: Type,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -27,6 +28,14 @@ pub enum Instruction {
     JumpIfZero(String, Value),
     JumpIfNotZero(String, Value),
     Label(String),
+    FunCall(FunCall),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FunCall {
+    pub function_name: String,
+    pub arguments: Vec<Value>,
+    pub dest: Value,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -77,4 +86,11 @@ pub enum Value {
     Identifier(String),
     Constant(i32),
     Empty,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Type {
+    Int,
+    Fn(Vec<Type>, Box<Type>),
+    Identifier(String),
 }

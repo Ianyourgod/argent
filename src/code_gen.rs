@@ -8,13 +8,6 @@ mod firstpass;
 mod secondpass;
 mod thirdpass;
 
-/*
-const BYTE: &str = "b";
-const WORD: &str = "w";
-const LONG: &str = "l";
-const QUAD: &str = "q";
-*/
-
 pub struct CodeGen {
     pub program: tacky::nodes::Program,
     source: String

@@ -35,6 +35,20 @@ impl Tacky {
         format!(".L{}", self.context.label_n)
     }
 
+    fn convert_type(&self, ty: &parser::nodes::Type) -> nodes::Type {
+        match ty {
+            parser::nodes::Type::Int => nodes::Type::Int,
+            parser::nodes::Type::Fn(ref args, ref ret) => {
+                let mut arg_types = Vec::new();
+                for arg in args {
+                    arg_types.push(self.convert_type(arg));
+                }
+                nodes::Type::Fn(arg_types, Box::new(self.convert_type(ret)))
+            }
+            parser::nodes::Type::Identifier(ident) => nodes::Type::Identifier(ident.value.clone()),
+        }
+    }
+
     pub fn generate(&mut self) -> nodes::Program {
         let mut program = nodes::Program {
             function_definitions: Vec::new(),
@@ -45,12 +59,16 @@ impl Tacky {
             let mut instructions = nodes::CompoundInstruction {
                 instructions: Vec::new(),
             };
+
+            let ret_type = self.convert_type(&statement.return_type);
+
             self.emit_tacky_statement(&*statement.body, &mut instructions);
             instructions.instructions.push(nodes::Instruction::Return(nodes::Value::Constant(0)));
             program.function_definitions.push(nodes::FunctionDefinition {
                 function_name: statement.function_name.clone(),
                 body: instructions,
-                return_type: statement.return_type.clone(),
+                return_type: ret_type,
+                arguments: statement.params.iter().map(|arg| (arg.ident.value.clone(), self.convert_type(&arg.kind))).collect(),
             });
         }
 
@@ -146,7 +164,7 @@ impl Tacky {
                     parser::nodes::Literal::Int(i) => nodes::Value::Constant(*i),
                     _ => panic!("Not implemented yet")
                 }
-            }
+            },
             parser::nodes::Expression::UnaryOp(op, exp) => {
                 let src = self.emit_tacky_expression(&*exp, instructions);
                 let dest = nodes::Value::Identifier(self.make_temporary());
@@ -160,7 +178,7 @@ impl Tacky {
                     dest: dest.clone(),
                 }));
                 dest
-            }
+            },
             parser::nodes::Expression::BinOp(exp1, op, exp2) => {
                 let operator = match op {
                     parser::nodes::BinOp::Add => nodes::BinaryOperator::Add,
@@ -211,10 +229,10 @@ impl Tacky {
                     dest: dest.clone(),
                 }));
                 dest
-            }
+            },
             parser::nodes::Expression::Var(ident) => {
                 nodes::Value::Identifier(ident.value.clone())
-            }
+            },
             parser::nodes::Expression::Assignment(ident, exp) => {
                 let value = self.emit_tacky_expression(&*exp, instructions);
                 instructions.instructions.push(nodes::Instruction::Copy(nodes::Copy {
@@ -222,7 +240,21 @@ impl Tacky {
                     dest: nodes::Value::Identifier(ident.value.clone()),
                 }));
                 value
-            }
+            },
+            parser::nodes::Expression::FunctionCall(name, args) => {
+                let mut arguments = Vec::new();
+                for arg in args {
+                    arguments.push(self.emit_tacky_expression(&*arg, instructions));
+                }
+                let dest = nodes::Value::Identifier(self.make_temporary());
+                instructions.instructions.push(nodes::Instruction::FunCall(nodes::FunCall {
+                    function_name: name.clone(),
+                    arguments,
+                    dest: dest.clone(),
+                }));
+                dest
+            },
+            #[allow(unreachable_patterns)]
             item => panic!("Not implemented yet: {:?}", item)
         }
     }
@@ -240,7 +272,7 @@ mod tests {
             function_definitions: vec![
                 parser::nodes::FunctionDeclaration {
                     function_name: "main".to_string(),
-                    return_type: "int".to_string(),
+                    return_type: parser::nodes::Type::Int,
                     body: Box::new(parser::nodes::Statement::Compound(parser::nodes::CompoundStatement {
                         statements: vec![
                             Box::new(parser::nodes::Statement::ReturnStatement(parser::nodes::ReturnStatement {
@@ -256,7 +288,7 @@ mod tests {
         let program = tacky.generate();
         assert_eq!(program.function_definitions.len(), 1);
         assert_eq!(program.function_definitions[0].function_name, "main");
-        assert_eq!(program.function_definitions[0].return_type, "int");
+        assert_eq!(program.function_definitions[0].return_type, nodes::Type::Int);
         assert_eq!(program.function_definitions[0].body.instructions.len(), 2);
         assert_eq!(program.function_definitions[0].body.instructions[0], nodes::Instruction::Return(nodes::Value::Constant(0)));
         assert_eq!(program.function_definitions[0].body.instructions[1], nodes::Instruction::Return(nodes::Value::Constant(0))); // Return 0 is added by the generator so if theres no return statement it doesnt bug out
@@ -268,13 +300,13 @@ mod tests {
             function_definitions: vec![
                 parser::nodes::FunctionDeclaration {
                     function_name: "main".to_string(),
-                    return_type: "int".to_string(),
+                    return_type: parser::nodes::Type::Int,
                     body: Box::new(parser::nodes::Statement::Compound(parser::nodes::CompoundStatement {
                         statements: vec![
                             Box::new(parser::nodes::Statement::VariableDeclaration(parser::nodes::VariableDeclaration {
                                 ident: parser::nodes::Identifier { value: "x".to_string() },
                                 expr: Some(Box::new(parser::nodes::Expression::Literal(parser::nodes::Literal::Int(42)))),
-                                kind: "int".to_string(),
+                                kind: parser::nodes::Type::Int,
                             })),
                             Box::new(parser::nodes::Statement::ReturnStatement(parser::nodes::ReturnStatement {
                                 return_value: Box::new(parser::nodes::Expression::Var(parser::nodes::Identifier { value: "x".to_string() })),
@@ -289,7 +321,7 @@ mod tests {
         let program = tacky.generate();
         assert_eq!(program.function_definitions.len(), 1);
         assert_eq!(program.function_definitions[0].function_name, "main");
-        assert_eq!(program.function_definitions[0].return_type, "int");
+        assert_eq!(program.function_definitions[0].return_type, nodes::Type::Int);
         assert_eq!(program.function_definitions[0].body.instructions.len(), 3);
         assert_eq!(program.function_definitions[0].body.instructions[0], nodes::Instruction::Copy(nodes::Copy {
             src: nodes::Value::Constant(42),
@@ -305,7 +337,7 @@ mod tests {
             function_definitions: vec![
                 parser::nodes::FunctionDeclaration {
                     function_name: "main".to_string(),
-                    return_type: "int".to_string(),
+                    return_type: parser::nodes::Type::Int,
                     body: Box::new(parser::nodes::Statement::Compound(parser::nodes::CompoundStatement {
                         statements: vec![
                             Box::new(parser::nodes::Statement::ReturnStatement(parser::nodes::ReturnStatement {
@@ -321,7 +353,7 @@ mod tests {
         let program = tacky.generate();
         assert_eq!(program.function_definitions.len(), 1);
         assert_eq!(program.function_definitions[0].function_name, "main");
-        assert_eq!(program.function_definitions[0].return_type, "int");
+        assert_eq!(program.function_definitions[0].return_type, nodes::Type::Int);
         assert_eq!(program.function_definitions[0].body.instructions.len(), 3);
         assert_eq!(program.function_definitions[0].body.instructions[0], nodes::Instruction::Unary(nodes::Unary {
             operator: nodes::UnaryOperator::Negate,

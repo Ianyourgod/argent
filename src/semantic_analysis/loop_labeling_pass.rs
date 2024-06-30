@@ -22,6 +22,7 @@ impl Pass {
         for function in self.program.function_definitions.clone() {
             let mut statements: Vec<Box<nodes::Statement>> = Vec::new();
 
+            // todo: change the function definition to be a compound statement instead of a vec of statements
             let body_statements = match *function.body {
                 nodes::Statement::Compound(ref compound) => compound.statements.clone(),
                 _ => panic!("Expected compound statement"),

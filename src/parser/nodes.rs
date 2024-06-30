@@ -48,18 +48,18 @@ pub struct FunctionDeclaration {
     pub function_name: String,
     pub params: Vec<FunctionArg>,
     pub body: Box<Statement>,
-    pub return_type: String,
+    pub return_type: Type,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionArg {
-    pub kind: String,
+    pub kind: Type,
     pub ident: Identifier,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct VariableDeclaration {
-    pub kind: String, // just int rn
+    pub kind: Type,
     pub ident: Identifier,
     pub expr: Option<Box<Expression>>,
 }
@@ -113,6 +113,13 @@ pub enum UnaryOp {
     LogicalNegation,
     Negation,
     Reference,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Type {
+    Int,
+    Fn(Vec<Type>, Box<Type>),
+    Identifier(Identifier)
 }
 
 // TODO: improve line stuff for errors

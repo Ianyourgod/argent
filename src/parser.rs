@@ -54,7 +54,7 @@ impl Parser {
             arrows.push_str("^")
         }
 
-        let position = format!("--> {}:{}", line + 1, position + 1);
+        let position = format!("--> {}:{}:{}", self.input_name, line + 1, position + 1);
         
         println!("{}\n{}\n{}\n{}",
             error_message,
@@ -90,7 +90,6 @@ impl Parser {
                 },
             };
             program.function_definitions.push(fn_def.clone());
-            self.next_token();
         }
 
         program
@@ -102,13 +101,13 @@ impl Parser {
                 match self.cur_token.literal.as_str() {
                     "fn" => self.parse_function_declaration(),
                     _ => {
-                        self.error("unexpected token".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+                        self.error(format!("Expected top level statement, found {:?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
                         panic!();
                     },
                 }
             },
             _ => {
-                self.error("unexpected token".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+                self.error(format!("Expected top level statement, found {:?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
                 panic!();
             },
         }
@@ -167,11 +166,23 @@ impl Parser {
 
         self.next_token();
 
-        if self.cur_token.kind != lexer::TokenType::Identifier && self.cur_token.literal != "int" {
+        let builtin_types = vec!["int"];
+
+        if self.cur_token.kind != lexer::TokenType::Identifier {
             self.error(format!("Expected identifier, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
         }
 
-        let kind = self.cur_token.literal.clone();
+        let kind = if builtin_types.contains(&self.cur_token.literal.as_str()) {
+            match self.cur_token.literal.as_str() {
+                "int" => nodes::Type::Int,
+                _ => {
+                    self.error(format!("Unknown type: {}", self.cur_token.literal), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+                    panic!();
+                },
+            }
+        } else {
+            nodes::Type::Identifier(nodes::Identifier { value: self.cur_token.literal.clone() })
+        };
 
         self.next_token();
 
@@ -265,7 +276,7 @@ impl Parser {
         self.next_token();
 
         if self.cur_token.kind != lexer::TokenType::Identifier {
-            self.error("unexpected token".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+            self.error(format!("Expected Identifier, found {:?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
         }
         let function_name = self.cur_token.literal.clone();
 
@@ -287,6 +298,11 @@ impl Parser {
                 }
 
                 let ident = nodes::Identifier { value: self.cur_token.literal.clone() };
+
+                if args.iter().any(|arg| arg.ident.value == ident.value) {
+                    self.error(format!("Duplicate argument name: {}", ident.value), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+                }
+
                 self.next_token();
 
                 if self.cur_token.kind != lexer::TokenType::Colon {
@@ -295,11 +311,23 @@ impl Parser {
 
                 self.next_token();
 
-                if self.cur_token.kind != lexer::TokenType::Identifier || self.cur_token.literal != "int" {
-                    self.error(format!("Expected type, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+                let builtin_types = vec!["int"];
+
+                if self.cur_token.kind != lexer::TokenType::Identifier {
+                    self.error(format!("Expected identifier, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
                 }
 
-                let kind = self.cur_token.literal.clone();
+                let kind = if builtin_types.contains(&self.cur_token.literal.as_str()) {
+                    match self.cur_token.literal.as_str() {
+                        "int" => nodes::Type::Int,
+                        _ => {
+                            self.error(format!("Unknown type: {}", self.cur_token.literal), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+                            panic!();
+                        },
+                    }
+                } else {
+                    nodes::Type::Identifier(nodes::Identifier { value: self.cur_token.literal.clone() })
+                };
 
                 self.next_token();
 
@@ -326,11 +354,23 @@ impl Parser {
 
         self.next_token();
 
-        if self.cur_token.kind != lexer::TokenType::Identifier || self.cur_token.literal != "int" {
-            self.error(format!("expected type, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+        let builtin_types = vec!["int"];
+
+        if self.cur_token.kind != lexer::TokenType::Identifier {
+            self.error(format!("Expected identifier, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
         }
 
-        let kind = self.cur_token.literal.clone();
+        let kind = if builtin_types.contains(&self.cur_token.literal.as_str()) {
+            match self.cur_token.literal.as_str() {
+                "int" => nodes::Type::Int,
+                _ => {
+                    self.error(format!("Unknown type: {}", self.cur_token.literal), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+                    panic!();
+                },
+            }
+        } else {
+            nodes::Type::Identifier(nodes::Identifier { value: self.cur_token.literal.clone() })
+        };
 
         self.next_token();
 
@@ -374,7 +414,7 @@ impl Parser {
         }))
     }
 
-    fn get_precidence(&self, token: &lexer::TokenType) -> i8 {
+    fn get_precidence(&self, token: &lexer::TokenType) -> u8 {
         match token {
             lexer::TokenType::Assign | 
             lexer::TokenType::AddAssign | lexer::TokenType::SubtractAssign |
@@ -448,7 +488,7 @@ impl Parser {
         }
     }
 
-    fn parse_expression(&mut self, min_prec: i8) -> Box<nodes::Expression> {
+    fn parse_expression(&mut self, min_prec: u8) -> Box<nodes::Expression> {
         let mut node = self.parse_factor();
         let prec = self.get_precidence(&self.cur_token.kind);
         while self.is_binop() &&
@@ -535,7 +575,7 @@ impl Parser {
                 Box::new(nodes::Expression::UnaryOp(nodes::UnaryOp::Reference, right))
             }
             _ => {
-                self.error(format!("Unexpected token, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+                self.error(format!("Expected factor, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
                 panic!();
             },
         }
@@ -544,10 +584,35 @@ impl Parser {
     fn parse_identifier(&mut self) -> Box<nodes::Expression> {
         let ident = self.cur_token.literal.clone();
         self.next_token();
+
+        if self.cur_token.kind != lexer::TokenType::LParen {
+            return Box::new(nodes::Expression::Var(nodes::Identifier {
+                value: ident,
+            }));
+        }
         
-        Box::new(nodes::Expression::Var(nodes::Identifier {
-            value: ident,
-        }))
+        self.next_token();
+
+        let mut args: Vec<Box<nodes::Expression>> = vec![];
+
+        if self.cur_token.kind != lexer::TokenType::RParen {
+            loop {
+                let expr = self.parse_expression(0);
+                args.push(expr);
+
+                if self.cur_token.kind == lexer::TokenType::RParen {
+                    break;
+                }
+                if self.cur_token.kind != lexer::TokenType::Comma {
+                    self.error(format!("Expected RParen, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+                }
+                self.next_token();
+            };
+        }
+
+        self.next_token();
+
+        Box::new(nodes::Expression::FunctionCall(ident, args))
     }
 
 
@@ -587,7 +652,7 @@ mod tests {
             nodes::Statement::FunctionDeclaration(ref f) => {
                 assert_eq!(f.function_name, "main");
                 assert_eq!(f.params.len(), 0);
-                assert_eq!(f.return_type, "int");
+                assert_eq!(f.return_type, nodes::Type::Int);
             },
             _ => panic!("expected function declaration"),
         }
@@ -609,7 +674,7 @@ mod tests {
             nodes::Statement::FunctionDeclaration(ref f) => {
                 assert_eq!(f.function_name, "main");
                 assert_eq!(f.params.len(), 2);
-                assert_eq!(f.return_type, "int");
+                assert_eq!(f.return_type, nodes::Type::Int);
             },
             _ => panic!("expected function declaration"),
         }

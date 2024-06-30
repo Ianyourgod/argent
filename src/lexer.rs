@@ -298,7 +298,7 @@ impl Lexer {
         let start_line = self.line;
         let start_pos = self.line_pos;
         let position = self.position;
-        while self.ch.is_alphabetic() || self.ch == '_' {
+        while self.ch.is_alphanumeric() || self.ch == '_' {
             self.read_char();
         }
 

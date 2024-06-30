@@ -95,7 +95,7 @@ fn error(filename: String, input: String, error_message: String, line: usize, po
         arrows.push_str("^")
     }
 
-    let position = format!("--> {}:{}", line + 1, position + 1);
+    let position = format!("--> {}:{}:{}", filename, line + 1, position + 1);
     
     println!("{}\n{}\n{}\n{}",
         error_message,
@@ -112,8 +112,6 @@ fn error(filename: String, input: String, error_message: String, line: usize, po
 }
 
 fn main() {
-    // check if there is a file to read from in cmd args
-
     if std::env::args().len() > 1 {
         match std::env::args().nth(1).unwrap().as_str() {
             "help" => {

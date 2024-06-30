@@ -13,7 +13,7 @@ impl Emitter {
         }
     }
 
-    fn get_size_of_suffix(&self, suffix: &Option<String>) -> i8 {
+    fn get_size_of_suffix(&self, suffix: &Option<String>) -> u8 {
         match suffix {
             Some(s) => {
                 match s.as_str() {
@@ -91,6 +91,9 @@ impl Emitter {
                     code_gen::nodes::Instruction::AllocateStack(allocate_stack) => {
                         output.push_str(&format!("    sub ${}, %rsp\n", allocate_stack));
                     }
+                    code_gen::nodes::Instruction::DeallocateStack(deallocate_stack) => {
+                        output.push_str(&format!("    add ${}, %rsp\n", deallocate_stack));
+                    }
                     code_gen::nodes::Instruction::Cmp(cmp) => {
                         output.push_str(&format!("    cmp{} {}, {}\n", self.get_suffix(&cmp.suffix), self.displ_op(&cmp.src, &cmp.suffix), self.displ_op(&cmp.dest, &cmp.suffix)));
                     }
@@ -105,6 +108,9 @@ impl Emitter {
                     }
                     code_gen::nodes::Instruction::SetCC(cond_code, operand) => {
                         output.push_str(&format!("    set{} {}\n", self.cond_code_to_str(cond_code), self.displ_op(operand, &Some("b".to_string()))));
+                    }
+                    code_gen::nodes::Instruction::Call(call) => {
+                        output.push_str(&format!("    call {}\n", call));
                     }
                     //#[allow(unreachable_patterns)]
                     //_ => panic!()
