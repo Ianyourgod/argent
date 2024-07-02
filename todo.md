@@ -18,13 +18,23 @@ wow todos for the argent language
     - [ ] Derive
 - [ ] more tests
 - [ ] more types
-  - [ ] long int
+  - [ ] int types
+    - [ ] i8
+    - [ ] i16
+    - [x] int (can also be i32)
+    - [ ] i64
+    - [ ] isize
+    - [ ] u8
+    - [ ] u16
+    - [ ] uint (can also be u32)
+    - [ ] u64
+    - [ ] usize
   - [ ] float
   - [ ] double
   - [ ] pointers
-  - [ ] arrays
-  - [ ] strings
-    - [ ] c strings
-    - [ ] awesome strings (like rust)
-      - [ ] string slices
-      - [ ] string literals
+    - [ ] arrays
+      - [ ] strings
+        - [ ] c strings
+        - [ ] awesome strings (like rust)
+          - [ ] string slices
+          - [ ] string literals
