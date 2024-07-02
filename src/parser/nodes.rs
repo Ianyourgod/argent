@@ -118,7 +118,6 @@ pub enum UnaryOp {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     Int,
-    I64,
     Fn(Vec<Type>, Box<Type>),
     Identifier(Identifier)
 }

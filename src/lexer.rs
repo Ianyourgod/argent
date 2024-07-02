@@ -302,7 +302,7 @@ impl Lexer {
             self.read_char();
         }
 
-        let keywords = vec!["fn", "let", "return", "if", "else", "while", "break", "continue"];
+        let keywords = vec!["fn", "let", "return", "if", "else", "while", "break", "continue", "int", "i64"];
         // todo: remove int from keywords and improve the type system
 
         let literal = self.input[position..self.position].to_string();

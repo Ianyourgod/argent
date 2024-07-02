@@ -162,7 +162,6 @@ impl Pass {
     fn convert_type(&self, type_: &nodes::Type) -> symbol_table::Type {
         match type_ {
             nodes::Type::Int => symbol_table::Type::Int,
-            nodes::Type::I64 => symbol_table::Type::I64,
             nodes::Type::Identifier(ident) => symbol_table::Type::Identifier(ident.value.clone()),
             nodes::Type::Fn(params, return_type) => symbol_table::Type::Fn(
                 params.iter().map(|arg| self.convert_type(arg)).collect(),

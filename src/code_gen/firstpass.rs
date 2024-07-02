@@ -72,7 +72,6 @@ impl Pass {
     fn convert_type(&self, ty: &tacky::nodes::Type) -> nodes::Type {
         match ty {
             tacky::nodes::Type::Int => nodes::Type::Int,
-            tacky::nodes::Type::I64 => nodes::Type::I64,
             tacky::nodes::Type::Fn(ref args, ref ret) => {
                 let mut arg_types = Vec::new();
                 for arg in args {

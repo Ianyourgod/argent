@@ -26,7 +26,6 @@ impl SymbolTable {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     Int,
-    I64,
     Fn(Vec<Type>, Box<Type>),
     Identifier(String),
 }
