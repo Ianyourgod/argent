@@ -38,6 +38,7 @@ impl Tacky {
     fn convert_type(&self, ty: &parser::nodes::Type) -> nodes::Type {
         match ty {
             parser::nodes::Type::Int => nodes::Type::Int,
+            parser::nodes::Type::I64 => nodes::Type::I64,
             parser::nodes::Type::Fn(ref args, ref ret) => {
                 let mut arg_types = Vec::new();
                 for arg in args {
