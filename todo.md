@@ -22,7 +22,7 @@ wow todos for the argent language
     - [ ] i8
     - [ ] i16
     - [x] int (can also be i32)
-    - [ ] i64
+    - [x] i64 (aka long, you cant use "long" tho)
     - [ ] isize
     - [ ] u8
     - [ ] u16

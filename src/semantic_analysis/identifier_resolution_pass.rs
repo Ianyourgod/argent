@@ -159,27 +159,27 @@ impl Pass {
 
     fn resolve_expression(&self, expr: Box<nodes::Expression>, context: &mut Context) -> Box<nodes::Expression> {
         match *expr {
-            nodes::Expression::Var(ref ident) => {
+            nodes::Expression::Var(ref ident, _) => {
                 if context.identifier_map.map.contains_key(&ident.value) {
-                    Box::new(nodes::Expression::Var(nodes::Identifier { value: context.identifier_map.map.get(&ident.value).unwrap().clone().0 }))
+                    Box::new(nodes::Expression::Var(nodes::Identifier { value: context.identifier_map.map.get(&ident.value).unwrap().clone().0 }, None))
                 } else {
                     panic!("Variable {} not found in scope", ident.value);
                 }
             },
-            nodes::Expression::Assignment(ref ident, ref expr) => {
+            nodes::Expression::Assignment(ref ident, ref expr, _) => {
                 if context.identifier_map.map.contains_key(&ident.value) {
-                    Box::new(nodes::Expression::Assignment(nodes::Identifier { value: context.identifier_map.map.get(&ident.value).unwrap().clone().0 }, self.resolve_expression(expr.clone(), context)))
+                    Box::new(nodes::Expression::Assignment(nodes::Identifier { value: context.identifier_map.map.get(&ident.value).unwrap().clone().0 }, self.resolve_expression(expr.clone(), context), None))
                 } else {
                     panic!("Variable {} not found in scope", ident.value);
                 }
             },
-            nodes::Expression::BinOp(ref left, ref op, ref right) => {
-                Box::new(nodes::Expression::BinOp(self.resolve_expression(left.clone(), context), op.clone(), self.resolve_expression(right.clone(), context)))
+            nodes::Expression::BinOp(ref left, ref op, ref right, _) => {
+                Box::new(nodes::Expression::BinOp(self.resolve_expression(left.clone(), context), op.clone(), self.resolve_expression(right.clone(), context), None))
             },
-            nodes::Expression::UnaryOp(ref op, ref expr) => {
-                Box::new(nodes::Expression::UnaryOp(op.clone(), self.resolve_expression(expr.clone(), context)))
+            nodes::Expression::UnaryOp(ref op, ref expr, _) => {
+                Box::new(nodes::Expression::UnaryOp(op.clone(), self.resolve_expression(expr.clone(), context), None))
             },
-            nodes::Expression::FunctionCall(ref name, ref args) => {
+            nodes::Expression::FunctionCall(ref name, ref args, _) => {
                 let calling_name = if !context.identifier_map.map.contains_key(name) {
                     //panic!("Function {} not found in scope", name); // for now keep this commented out, it allows for the usage of c libraries before we've implemented imports
                     name.clone()
@@ -193,7 +193,10 @@ impl Pass {
                     new_args.push(self.resolve_expression(arg.clone(), context));
                 }
 
-                Box::new(nodes::Expression::FunctionCall(calling_name, new_args))
+                Box::new(nodes::Expression::FunctionCall(calling_name, new_args, None))
+            },
+            nodes::Expression::Cast(ref expr, _) => {
+                Box::new(nodes::Expression::Cast(self.resolve_expression(expr.clone(), context), None))
             },
             _ => expr,
         }
@@ -212,17 +215,17 @@ mod tests {
             function_definitions: vec![
                 nodes::FunctionDeclaration {
                     function_name: "main".to_string(),
-                    return_type: nodes::Type::Int,
+                    return_type: nodes::Type::I32,
                     params: vec![],
                     body: Box::new(nodes::Statement::Compound(nodes::CompoundStatement {
                         statements: vec![
                             Box::new(nodes::Statement::VariableDeclaration(nodes::VariableDeclaration {
-                                kind: nodes::Type::Int,
+                                kind: nodes::Type::I32,
                                 ident: nodes::Identifier { value: "a".to_string() },
-                                expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::Int(5)))),
+                                expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::I32(5), None))),
                             })),
                             Box::new(nodes::Statement::ExpressionStatement(nodes::ExpressionStatement {
-                                expression: Box::new(nodes::Expression::Var(nodes::Identifier { value: "a".to_string() })),
+                                expression: Box::new(nodes::Expression::Var(nodes::Identifier { value: "a".to_string() }, None)),
                             })),
                         ],
                     })),
@@ -236,12 +239,12 @@ mod tests {
         assert_eq!(new_program.function_definitions[0].body, Box::new(nodes::Statement::Compound(nodes::CompoundStatement {
             statements: vec![
                 Box::new(nodes::Statement::VariableDeclaration(nodes::VariableDeclaration {
-                    kind: nodes::Type::Int,
+                    kind: nodes::Type::I32,
                     ident: nodes::Identifier { value: ".localvar0".to_string() },
-                    expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::Int(5)))),
+                    expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::I32(5), None))),
                 })),
                 Box::new(nodes::Statement::ExpressionStatement(nodes::ExpressionStatement {
-                    expression: Box::new(nodes::Expression::Var(nodes::Identifier { value: ".localvar0".to_string() })),
+                    expression: Box::new(nodes::Expression::Var(nodes::Identifier { value: ".localvar0".to_string() }, None)),
                 })),
             ],
         })));
@@ -254,19 +257,19 @@ mod tests {
             function_definitions: vec![
                 nodes::FunctionDeclaration {
                     function_name: "main".to_string(),
-                    return_type: nodes::Type::Int,
+                    return_type: nodes::Type::I32,
                     params: vec![],
                     body: Box::new(nodes::Statement::Compound(nodes::CompoundStatement {
                         statements: vec![
                             Box::new(nodes::Statement::VariableDeclaration(nodes::VariableDeclaration {
-                                kind: nodes::Type::Int,
+                                kind: nodes::Type::I32,
                                 ident: nodes::Identifier { value: "a".to_string() },
-                                expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::Int(5)))),
+                                expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::I32(5), None))),
                             })),
                             Box::new(nodes::Statement::VariableDeclaration(nodes::VariableDeclaration {
-                                kind: nodes::Type::Int,
+                                kind: nodes::Type::I32,
                                 ident: nodes::Identifier { value: "a".to_string() },
-                                expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::Int(5)))),
+                                expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::I32(5), None))),
                             })),
                         ],
                     })),
@@ -284,17 +287,17 @@ mod tests {
             function_definitions: vec![
                 nodes::FunctionDeclaration {
                     function_name: "main".to_string(),
-                    return_type: nodes::Type::Int,
+                    return_type: nodes::Type::I32,
                     params: vec![],
                     body: Box::new(nodes::Statement::Compound(nodes::CompoundStatement {
                         statements: vec![
                             Box::new(nodes::Statement::VariableDeclaration(nodes::VariableDeclaration {
-                                kind: nodes::Type::Int,
+                                kind: nodes::Type::I32,
                                 ident: nodes::Identifier { value: "a".to_string() },
-                                expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::Int(5)))),
+                                expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::I32(5), None))),
                             })),
                             Box::new(nodes::Statement::ExpressionStatement(nodes::ExpressionStatement {
-                                expression: Box::new(nodes::Expression::Assignment(nodes::Identifier { value: "a".to_string() }, Box::new(nodes::Expression::Literal(nodes::Literal::Int(10)) ))),
+                                expression: Box::new(nodes::Expression::Assignment(nodes::Identifier { value: "a".to_string() }, Box::new(nodes::Expression::Literal(nodes::Literal::I32(10), None) ), None)),
                             })),
                         ],
                     })),
@@ -308,12 +311,12 @@ mod tests {
         assert_eq!(new_program.function_definitions[0].body, Box::new(nodes::Statement::Compound(nodes::CompoundStatement {
             statements: vec![
                 Box::new(nodes::Statement::VariableDeclaration(nodes::VariableDeclaration {
-                    kind: nodes::Type::Int,
+                    kind: nodes::Type::I32,
                     ident: nodes::Identifier { value: ".localvar0".to_string() },
-                    expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::Int(5)))),
+                    expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::I32(5), None))),
                 })),
                 Box::new(nodes::Statement::ExpressionStatement(nodes::ExpressionStatement {
-                    expression: Box::new(nodes::Expression::Assignment(nodes::Identifier { value: ".localvar0".to_string() }, Box::new(nodes::Expression::Literal(nodes::Literal::Int(10)) ))),
+                    expression: Box::new(nodes::Expression::Assignment(nodes::Identifier { value: ".localvar0".to_string() }, Box::new(nodes::Expression::Literal(nodes::Literal::I32(10), None) ), None)),
                 })),
             ],
         })));
@@ -326,12 +329,12 @@ mod tests {
             function_definitions: vec![
                 nodes::FunctionDeclaration {
                     function_name: "main".to_string(),
-                    return_type: nodes::Type::Int,
+                    return_type: nodes::Type::I32,
                     params: vec![],
                     body: Box::new(nodes::Statement::Compound(nodes::CompoundStatement {
                         statements: vec![
                             Box::new(nodes::Statement::ExpressionStatement(nodes::ExpressionStatement {
-                                expression: Box::new(nodes::Expression::Assignment(nodes::Identifier { value: "a".to_string() }, Box::new(nodes::Expression::Literal(nodes::Literal::Int(10)) ))),
+                                expression: Box::new(nodes::Expression::Assignment(nodes::Identifier { value: "a".to_string() }, Box::new(nodes::Expression::Literal(nodes::Literal::I32(10), None) ), None)),
                             })),
                         ],
                     })),

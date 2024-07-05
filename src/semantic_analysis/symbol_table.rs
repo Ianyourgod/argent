@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 
 use std::collections::HashMap;
+use crate::parser::nodes::Type;
+
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SymbolTable {
@@ -21,11 +23,4 @@ impl SymbolTable {
     pub fn get(&self, key: &str) -> Option<&Type> {
         self.table.get(key)
     }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Type {
-    Int,
-    Fn(Vec<Type>, Box<Type>),
-    Identifier(String),
 }

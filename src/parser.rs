@@ -24,7 +24,7 @@ impl Parser {
         }
     }
 
-    fn error(&mut self, error_message: String, line: usize, position: usize, length: usize, error_code: Option<i32>) {
+    fn error(&self, error_message: String, line: usize, position: usize, length: usize, error_code: Option<i32>) {
         if self.error_func.is_some() {
             self.error_func.unwrap()(self.input_name.clone(), self.lexer.input.clone(), error_message, line, position, length, error_code);
             return;
@@ -93,6 +93,29 @@ impl Parser {
         }
 
         program
+    }
+
+    fn valid_type(&self) -> nodes::Type {
+        let builtin_types = vec!["int", "i32", "i64"];
+
+        if self.cur_token.kind != lexer::TokenType::Keyword {
+            self.error(format!("Expected type, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+        }
+
+        if builtin_types.contains(&self.cur_token.literal.as_str()) {
+            match self.cur_token.literal.as_str() {
+                "int" => nodes::Type::I32,
+                "i32" => nodes::Type::I32,
+                "i64" => nodes::Type::I64,
+                _ => {
+                    self.error(format!("Unknown type: {}", self.cur_token.literal), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+                    panic!();
+                },
+            }
+        } else {
+            panic!("Unknown type: {}", self.cur_token.literal);
+            //nodes::Type::Identifier(nodes::Identifier { value: self.cur_token.literal.clone() })
+        }
     }
 
     fn parse_top_level_statement(&mut self) -> Box<nodes::Statement> {
@@ -166,23 +189,7 @@ impl Parser {
 
         self.next_token();
 
-        let builtin_types = vec!["int"];
-
-        if self.cur_token.kind != lexer::TokenType::Identifier {
-            self.error(format!("Expected identifier, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
-        }
-
-        let kind = if builtin_types.contains(&self.cur_token.literal.as_str()) {
-            match self.cur_token.literal.as_str() {
-                "int" => nodes::Type::Int,
-                _ => {
-                    self.error(format!("Unknown type: {}", self.cur_token.literal), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
-                    panic!();
-                },
-            }
-        } else {
-            nodes::Type::Identifier(nodes::Identifier { value: self.cur_token.literal.clone() })
-        };
+        let kind = self.valid_type();
 
         self.next_token();
 
@@ -311,23 +318,7 @@ impl Parser {
 
                 self.next_token();
 
-                let builtin_types = vec!["int"];
-
-                if self.cur_token.kind != lexer::TokenType::Identifier {
-                    self.error(format!("Expected identifier, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
-                }
-
-                let kind = if builtin_types.contains(&self.cur_token.literal.as_str()) {
-                    match self.cur_token.literal.as_str() {
-                        "int" => nodes::Type::Int,
-                        _ => {
-                            self.error(format!("Unknown type: {}", self.cur_token.literal), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
-                            panic!();
-                        },
-                    }
-                } else {
-                    nodes::Type::Identifier(nodes::Identifier { value: self.cur_token.literal.clone() })
-                };
+                let kind = self.valid_type();
 
                 self.next_token();
 
@@ -354,23 +345,7 @@ impl Parser {
 
         self.next_token();
 
-        let builtin_types = vec!["int"];
-
-        if self.cur_token.kind != lexer::TokenType::Identifier {
-            self.error(format!("Expected identifier, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
-        }
-
-        let kind = if builtin_types.contains(&self.cur_token.literal.as_str()) {
-            match self.cur_token.literal.as_str() {
-                "int" => nodes::Type::Int,
-                _ => {
-                    self.error(format!("Unknown type: {}", self.cur_token.literal), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
-                    panic!();
-                },
-            }
-        } else {
-            nodes::Type::Identifier(nodes::Identifier { value: self.cur_token.literal.clone() })
-        };
+        let kind = self.valid_type();
 
         self.next_token();
 
@@ -496,7 +471,7 @@ impl Parser {
 
             if self.is_assignment() {
                 let ident = match *node {
-                    nodes::Expression::Var(ref ident) => {
+                    nodes::Expression::Var(ref ident, _) => {
                         ident.clone()
                     },
                     _ => {
@@ -516,38 +491,46 @@ impl Parser {
                         parsed_expr
                     },
                     lexer::TokenType::AddAssign => {
-                        Box::new(nodes::Expression::BinOp(node.clone(), nodes::BinOp::Add, parsed_expr))
+                        Box::new(nodes::Expression::BinOp(node.clone(), nodes::BinOp::Add, parsed_expr, None))
                     },
                     lexer::TokenType::SubtractAssign => {
-                        Box::new(nodes::Expression::BinOp(node.clone(), nodes::BinOp::Subtract, parsed_expr))
+                        Box::new(nodes::Expression::BinOp(node.clone(), nodes::BinOp::Subtract, parsed_expr, None))
                     },
                     lexer::TokenType::MultiplyAssign => {
-                        Box::new(nodes::Expression::BinOp(node.clone(), nodes::BinOp::Multiply, parsed_expr))
+                        Box::new(nodes::Expression::BinOp(node.clone(), nodes::BinOp::Multiply, parsed_expr, None))
                     },
                     lexer::TokenType::DivideAssign => {
-                        Box::new(nodes::Expression::BinOp(node.clone(), nodes::BinOp::Divide, parsed_expr))
+                        Box::new(nodes::Expression::BinOp(node.clone(), nodes::BinOp::Divide, parsed_expr, None))
                     },
                     _ => unreachable!(),
                 };
 
-                node = Box::new(nodes::Expression::Assignment(ident, right));
+                node = Box::new(nodes::Expression::Assignment(ident, right, None));
             } else {
                 let operator = self.parse_binop();
                 self.next_token();
                 let right = self.parse_expression(prec + 1);
-                node = Box::new(nodes::Expression::BinOp(node, operator, right));
+                node = Box::new(nodes::Expression::BinOp(node, operator, right, None));
             }
         }
 
         node
     }
 
+    fn parse_int_literal(&mut self) -> Box<nodes::Expression> {
+        let int = self.cur_token.literal.parse::<i64>().unwrap();
+        self.next_token();
+        if int > i32::MAX as i64 {
+            Box::new(nodes::Expression::Literal(nodes::Literal::I64(int), None))
+        } else {
+            Box::new(nodes::Expression::Literal(nodes::Literal::I32(int as i32), None))
+        }
+    }
+
     fn parse_factor(&mut self) -> Box<nodes::Expression> {
         match self.cur_token.kind {
             lexer::TokenType::Int => {
-                let int = self.cur_token.literal.parse::<i32>().unwrap();
-                self.next_token();
-                Box::new(nodes::Expression::Literal(nodes::Literal::Int(int)))
+                self.parse_int_literal()
             },
             lexer::TokenType::Identifier => {
                 self.parse_identifier()
@@ -557,7 +540,7 @@ impl Parser {
                 let op = self.parse_unop();
                 self.next_token();
                 let expr = self.parse_factor();
-                Box::new(nodes::Expression::UnaryOp(op, expr))
+                Box::new(nodes::Expression::UnaryOp(op, expr, None))
             },
             lexer::TokenType::LParen => {
                 self.next_token();
@@ -572,7 +555,7 @@ impl Parser {
             lexer::TokenType::Pointer => {
                 self.next_token();
                 let right = self.parse_factor();
-                Box::new(nodes::Expression::UnaryOp(nodes::UnaryOp::Reference, right))
+                Box::new(nodes::Expression::UnaryOp(nodes::UnaryOp::Reference, right, None))
             }
             _ => {
                 self.error(format!("Expected factor, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
@@ -588,7 +571,7 @@ impl Parser {
         if self.cur_token.kind != lexer::TokenType::LParen {
             return Box::new(nodes::Expression::Var(nodes::Identifier {
                 value: ident,
-            }));
+            }, None));
         }
         
         self.next_token();
@@ -612,7 +595,7 @@ impl Parser {
 
         self.next_token();
 
-        Box::new(nodes::Expression::FunctionCall(ident, args))
+        Box::new(nodes::Expression::FunctionCall(ident, args, None))
     }
 
 
@@ -652,7 +635,7 @@ mod tests {
             nodes::Statement::FunctionDeclaration(ref f) => {
                 assert_eq!(f.function_name, "main");
                 assert_eq!(f.params.len(), 0);
-                assert_eq!(f.return_type, nodes::Type::Int);
+                assert_eq!(f.return_type, nodes::Type::I32);
             },
             _ => panic!("expected function declaration"),
         }
@@ -674,7 +657,7 @@ mod tests {
             nodes::Statement::FunctionDeclaration(ref f) => {
                 assert_eq!(f.function_name, "main");
                 assert_eq!(f.params.len(), 2);
-                assert_eq!(f.return_type, nodes::Type::Int);
+                assert_eq!(f.return_type, nodes::Type::I32);
             },
             _ => panic!("expected function declaration"),
         }
@@ -700,15 +683,16 @@ mod tests {
                         assert_eq!(c.statements.len(), 2);
                         assert_eq!(c.statements[0], Box::new(nodes::Statement::IfStatement(nodes::IfStatement {
                             condition: Box::new(nodes::Expression::BinOp(
-                                Box::new(nodes::Expression::Literal(nodes::Literal::Int(1))),
+                                Box::new(nodes::Expression::Literal(nodes::Literal::I32(1), None)),
                                 nodes::BinOp::Equal,
-                                Box::new(nodes::Expression::Literal(nodes::Literal::Int(1)))
+                                Box::new(nodes::Expression::Literal(nodes::Literal::I32(1), None)),
+                                None
                             )),
                             consequence: Box::new(nodes::Statement::Compound(nodes::CompoundStatement { statements: vec![] })),
                             alternative: None,
                         })));
                         assert_eq!(c.statements[1], Box::new(nodes::Statement::ReturnStatement(nodes::ReturnStatement {
-                            return_value: Box::new(nodes::Expression::Literal(nodes::Literal::Int(6)))
+                            return_value: Box::new(nodes::Expression::Literal(nodes::Literal::I32(6), None))
                         })));
                     },
                     _ => panic!("expected compound statement"),

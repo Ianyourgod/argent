@@ -1,12 +1,14 @@
 use crate::code_gen::nodes;
+use crate::tacky;
 
 pub struct Pass {
     pub program: nodes::Program,
+    symbol_table: tacky::nodes::SymbolTable,
 }
 
 impl Pass {
-    pub fn new(program: &nodes::Program) -> Pass {
-        Pass { program: program.clone() }
+    pub fn new(program: &nodes::Program, symbol_table: tacky::nodes::SymbolTable) -> Pass {
+        Pass { program: program.clone(), symbol_table }
     }
 
     pub fn run(&mut self) -> nodes::Program {
@@ -109,13 +111,16 @@ impl Pass {
 
                 instructions.push(nodes::Instruction::SetCC(cond_code.clone(), operand));
             },
-            nodes::Instruction::Push(ref push) => {
-                let operand = self.emit_operand(&push.operand, instructions, context);
+            nodes::Instruction::Push(ref operand) => {
+                let operand = self.emit_operand(&operand, instructions, context);
 
-                instructions.push(nodes::Instruction::Push(nodes::UnaryOp {
-                    operand,
-                    suffix: push.suffix.clone(),
-                }));
+                instructions.push(nodes::Instruction::Push(operand));
+            },
+            nodes::Instruction::Movsx(src, dst) => {
+                let src = self.emit_operand(&src, instructions, context);
+                let dst = self.emit_operand(&dst, instructions, context);
+
+                instructions.push(nodes::Instruction::Movsx(src, dst));
             },
             _ => {
                 instructions.push(statement.clone());
@@ -132,7 +137,18 @@ impl Pass {
                         nodes::Operand::StackAllocate(*offset as isize)
                     },
                     None => {
-                        context.stack_offset += 4;
+                        let size = if self.symbol_table.get(&identifier.name).unwrap() == &tacky::nodes::Type::I32 {
+                            4
+                        } else {
+                            8
+                        };
+
+                        let offset = context.stack_offset % 8;
+
+                        if size == 8 && offset != 0 {
+                            context.stack_offset += 8 - offset;
+                        }
+                        context.stack_offset += size;
                         context.var_map.insert(identifier.name.clone(), context.stack_offset);
                         nodes::Operand::StackAllocate(context.stack_offset as isize)
                     },

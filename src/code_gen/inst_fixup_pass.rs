@@ -67,12 +67,12 @@ impl Pass {
                     instructions.push(nodes::Instruction::Mov(nodes::BinOp {
                         dest: nodes::Operand::Register(nodes::Reg::R10),
                         src: nodes::Operand::StackAllocate(idx2),
-                        suffix: Some("l".to_string()),
+                        suffix: mov.suffix.clone(),
                     }));
                     instructions.push(nodes::Instruction::Mov(nodes::BinOp {
                         dest: nodes::Operand::StackAllocate(idx1),
                         src: nodes::Operand::Register(nodes::Reg::R10),
-                        suffix: Some("l".to_string()),
+                        suffix: mov.suffix.clone(),
                     }));
                     return;
                 }
@@ -89,12 +89,12 @@ impl Pass {
                     instructions.push(nodes::Instruction::Mov(nodes::BinOp {
                         dest: nodes::Operand::Register(nodes::Reg::R10),
                         src: nodes::Operand::StackAllocate(idx2),
-                        suffix: Some("l".to_string()),
+                        suffix: add.suffix.clone(),
                     }));
                     instructions.push(nodes::Instruction::Add(nodes::BinOp {
                         dest: nodes::Operand::StackAllocate(idx1),
                         src: nodes::Operand::Register(nodes::Reg::R10),
-                        suffix: Some("l".to_string()),
+                        suffix: add.suffix.clone(),
                     }));
                     return;
                 }
@@ -111,12 +111,12 @@ impl Pass {
                     instructions.push(nodes::Instruction::Mov(nodes::BinOp {
                         dest: nodes::Operand::Register(nodes::Reg::R10),
                         src: nodes::Operand::StackAllocate(idx2),
-                        suffix: Some("l".to_string()),
+                        suffix: sub.suffix.clone(),
                     }));
                     instructions.push(nodes::Instruction::Sub(nodes::BinOp {
                         dest: nodes::Operand::StackAllocate(idx1),
                         src: nodes::Operand::Register(nodes::Reg::R10),
-                        suffix: Some("l".to_string()),
+                        suffix: sub.suffix.clone(),
                     }));
                     return;
                 }
@@ -133,22 +133,22 @@ impl Pass {
                     instructions.push(nodes::Instruction::Mov(nodes::BinOp {
                         dest: nodes::Operand::Register(nodes::Reg::R10),
                         src: nodes::Operand::StackAllocate(idx2),
-                        suffix: Some("l".to_string()),
+                        suffix: mul.suffix.clone(),
                     }));
                     instructions.push(nodes::Instruction::Mov(nodes::BinOp {
                         dest: nodes::Operand::Register(nodes::Reg::R11),
                         src: nodes::Operand::StackAllocate(idx1),
-                        suffix: Some("l".to_string()),
+                        suffix: mul.suffix.clone(),
                     }));
                     instructions.push(nodes::Instruction::Mul(nodes::BinOp {
                         dest: nodes::Operand::Register(nodes::Reg::R11),
                         src: nodes::Operand::Register(nodes::Reg::R10),
-                        suffix: Some("l".to_string()),
+                        suffix: mul.suffix.clone(),
                     }));
                     instructions.push(nodes::Instruction::Mov(nodes::BinOp {
                         dest: nodes::Operand::StackAllocate(idx1),
                         src: nodes::Operand::Register(nodes::Reg::R11),
-                        suffix: Some("l".to_string()),
+                        suffix: mul.suffix.clone(),
                     }));
                     return;
                 }
@@ -157,7 +157,7 @@ impl Pass {
                     instructions.push(nodes::Instruction::Mov(nodes::BinOp {
                         dest: nodes::Operand::Register(nodes::Reg::R11),
                         src: nodes::Operand::StackAllocate(*idx1),
-                        suffix: Some("l".to_string()),
+                        suffix: mul.suffix.clone(),
                     }));
                     instructions.push(nodes::Instruction::Mul(nodes::BinOp {
                         dest: nodes::Operand::Register(nodes::Reg::R11),
@@ -167,7 +167,7 @@ impl Pass {
                     instructions.push(nodes::Instruction::Mov(nodes::BinOp {
                         dest: nodes::Operand::StackAllocate(*idx1),
                         src: nodes::Operand::Register(nodes::Reg::R11),
-                        suffix: Some("l".to_string()),
+                        suffix: mul.suffix.clone(),
                     }));
                     return;
                 }
@@ -183,7 +183,7 @@ impl Pass {
                     instructions.push(nodes::Instruction::Mov(nodes::BinOp {
                         dest: nodes::Operand::Register(nodes::Reg::R10),
                         src: nodes::Operand::Immediate(*val),
-                        suffix: Some("l".to_string()),
+                        suffix: div.suffix.clone(),
                     }));
                     instructions.push(nodes::Instruction::Div(nodes::UnaryOp {
                         operand: nodes::Operand::Register(nodes::Reg::R10),
@@ -201,25 +201,25 @@ impl Pass {
                     instructions.push(nodes::Instruction::Mov(nodes::BinOp {
                         dest: nodes::Operand::Register(nodes::Reg::R10),
                         src: nodes::Operand::StackAllocate(idx2),
-                        suffix: Some("l".to_string()),
+                        suffix: cmp.suffix.clone(),
                     }));
                     if dest_is_immediate {
                         instructions.push(nodes::Instruction::Mov(nodes::BinOp {
                             dest: nodes::Operand::Register(nodes::Reg::R11),
                             src: nodes::Operand::StackAllocate(idx1),
-                            suffix: Some("l".to_string()),
+                            suffix: cmp.suffix.clone(),
                         }));
                         instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
                             dest: nodes::Operand::Register(nodes::Reg::R11),
                             src: nodes::Operand::Register(nodes::Reg::R10),
-                            suffix: Some("l".to_string()),
+                            suffix: cmp.suffix.clone(),
                         }));
                         return;
                     }
                     instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
                         dest: nodes::Operand::StackAllocate(idx1),
                         src: nodes::Operand::Register(nodes::Reg::R10),
-                        suffix: Some("l".to_string()),
+                        suffix: cmp.suffix.clone(),
                     }));
                     return;
                 }
@@ -228,18 +228,57 @@ impl Pass {
                     instructions.push(nodes::Instruction::Mov(nodes::BinOp {
                         dest: nodes::Operand::Register(nodes::Reg::R11),
                         src: cmp.src.clone(),
-                        suffix: Some("l".to_string()),
+                        suffix: cmp.suffix.clone(),
                     }));
                     instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
                         dest: nodes::Operand::Register(nodes::Reg::R11),
                         src: cmp.dest.clone(),
-                        suffix: Some("l".to_string()),
+                        suffix: cmp.suffix.clone(),
                     }));
                     return;
                 }
 
                 instructions.push(statement.clone());
-            }
+            },
+            nodes::Instruction::Movsx(src, dst) => {
+                let src_is_immediate = self.arg_is_immediate(src);
+                let dst_is_mem = match dst {
+                    nodes::Operand::StackAllocate(_) => true,
+                    _ => false,
+                };
+
+                if src_is_immediate {
+                    instructions.push(nodes::Instruction::Mov(nodes::BinOp {
+                        dest: nodes::Operand::Register(nodes::Reg::R10),
+                        src: src.clone(),
+                        suffix: nodes::Suffix::L,
+                    }));
+
+                    if dst_is_mem {
+                        instructions.push(nodes::Instruction::Movsx(nodes::Operand::Register(nodes::Reg::R10), nodes::Operand::Register(nodes::Reg::R11)));
+                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
+                            src: nodes::Operand::Register(nodes::Reg::R11),
+                            dest: dst.clone(),
+                            suffix: nodes::Suffix::Q,
+                        }));
+                        return;
+                    }
+
+                    instructions.push(nodes::Instruction::Movsx(nodes::Operand::Register(nodes::Reg::R10), dst.clone()));
+                }
+
+                if dst_is_mem {
+                    instructions.push(nodes::Instruction::Movsx(src.clone(), nodes::Operand::Register(nodes::Reg::R11)));
+                    instructions.push(nodes::Instruction::Mov(nodes::BinOp {
+                        src: nodes::Operand::Register(nodes::Reg::R11),
+                        dest: dst.clone(),
+                        suffix: nodes::Suffix::Q,
+                    }));
+                    return;
+                }
+
+                instructions.push(nodes::Instruction::Movsx(src.clone(), dst.clone()));
+            },
             _ => {
                 instructions.push(statement.clone());
             },

@@ -16,7 +16,7 @@ impl Analysis {
         }
     }
 
-    pub fn run(&mut self) -> parser::nodes::Program {
+    pub fn run(&mut self) -> (parser::nodes::Program, symbol_table::SymbolTable) {
         let first_pass = identifier_resolution_pass::Pass::new(&self.ast);
 
         let program = first_pass.run();
@@ -27,8 +27,8 @@ impl Analysis {
 
         let third_pass = type_checking_pass::Pass::new(&program);
 
-        let sym_tbl = third_pass.run();
+        let (program, sym_tbl) = third_pass.run();
 
-        program
+        (program, sym_tbl)
     }
 }

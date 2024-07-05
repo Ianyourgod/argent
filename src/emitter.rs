@@ -13,27 +13,21 @@ impl Emitter {
         }
     }
 
-    fn get_size_of_suffix(&self, suffix: &Option<String>) -> u8 {
+    fn get_size_of_suffix(&self, suffix: &code_gen::nodes::Suffix) -> u8 {
         match suffix {
-            Some(s) => {
-                match s.as_str() {
-                    "b" => 1,
-                    "w" => 2,
-                    "l" => 4,
-                    "q" => 8,
-                    _ => panic!()
-                }
-            }
-            None => 4
+            code_gen::nodes::Suffix::B => 1,
+            code_gen::nodes::Suffix::W => 2,
+            code_gen::nodes::Suffix::L => 4,
+            code_gen::nodes::Suffix::Q => 8,
         }
     }
 
-    fn displ_op(&self, operand: &code_gen::nodes::Operand, suffix: &Option<String>) -> String {
+    fn displ_op(&self, operand: &code_gen::nodes::Operand, suffix: &code_gen::nodes::Suffix) -> String {
         operand.displ(Some(self.get_size_of_suffix(suffix)))
     }
 
-    fn get_suffix(&self, suffix: &Option<String>) -> String {
-        if suffix.is_some() {suffix.clone().unwrap()} else {String::new()}
+    fn get_suffix(&self, suffix: &code_gen::nodes::Suffix) -> String {
+        format!("{}", suffix)
     }
 
     fn cond_code_to_str(&self, cond_code: &code_gen::nodes::CondCode) -> String {
@@ -58,14 +52,14 @@ impl Emitter {
 
                 match instruction {
                     code_gen::nodes::Instruction::Mov(mov) => {
-                        output.push_str(&format!("    mov{} {}, {}\n", if mov.suffix.is_some() {mov.suffix.clone().unwrap()} else {String::new()}, self.displ_op(&mov.src, &mov.suffix), self.displ_op(&mov.dest, &mov.suffix)));
+                        output.push_str(&format!("    mov{} {}, {}\n", mov.suffix, self.displ_op(&mov.src, &mov.suffix), self.displ_op(&mov.dest, &mov.suffix)));
                     }
                     code_gen::nodes::Instruction::Ret => {
                         output.push_str("    leave\n");
                         output.push_str("    ret\n");
                     }
-                    code_gen::nodes::Instruction::Push(push) => {
-                        output.push_str(&format!("    push{} {}\n", self.get_suffix(&push.suffix), self.displ_op(&push.operand, &push.suffix)));
+                    code_gen::nodes::Instruction::Push(operand) => {
+                        output.push_str(&format!("    push {}\n", self.displ_op(&operand, &code_gen::nodes::Suffix::Q)));
                     }
                     code_gen::nodes::Instruction::Pop(pop) => {
                         output.push_str(&format!("    pop{} {}\n", self.get_suffix(&pop.suffix), self.displ_op(&pop.operand, &pop.suffix)));
@@ -85,8 +79,12 @@ impl Emitter {
                     code_gen::nodes::Instruction::Neg(neg) => {
                         output.push_str(&format!("    neg{} {}\n", self.get_suffix(&neg.suffix), self.displ_op(&neg.operand, &neg.suffix)));
                     }
-                    code_gen::nodes::Instruction::Cdq => {
-                        output.push_str("    cdq\n");
+                    code_gen::nodes::Instruction::Cdq(suffix) => {
+                        output.push_str(if suffix==&code_gen::nodes::Suffix::L {
+                            "    cqd\n"
+                        } else {
+                            "    cqt\n"
+                        });
                     }
                     code_gen::nodes::Instruction::AllocateStack(allocate_stack) => {
                         output.push_str(&format!("    sub ${}, %rsp\n", allocate_stack));
@@ -107,10 +105,13 @@ impl Emitter {
                         output.push_str(&format!("    j{} {}\n", self.cond_code_to_str(cond_code), jump));
                     }
                     code_gen::nodes::Instruction::SetCC(cond_code, operand) => {
-                        output.push_str(&format!("    set{} {}\n", self.cond_code_to_str(cond_code), self.displ_op(operand, &Some("b".to_string()))));
+                        output.push_str(&format!("    set{} {}\n", self.cond_code_to_str(cond_code), self.displ_op(operand, &code_gen::nodes::Suffix::B)));
                     }
                     code_gen::nodes::Instruction::Call(call) => {
                         output.push_str(&format!("    call {}\n", call));
+                    }
+                    code_gen::nodes::Instruction::Movsx(src, dst) => {
+                        output.push_str(&format!("    movsx {}, {}\n", self.displ_op(src, &code_gen::nodes::Suffix::L), self.displ_op(dst, &code_gen::nodes::Suffix::Q)));
                     }
                     //#[allow(unreachable_patterns)]
                     //_ => panic!()

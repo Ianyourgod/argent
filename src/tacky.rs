@@ -11,6 +11,7 @@ pub struct Context {
 
 pub struct Tacky {
     pub ast: parser::nodes::Program,
+    pub symbol_table: nodes::SymbolTable,
     pub context: Context,
 }
 
@@ -22,12 +23,25 @@ impl Tacky {
                 tmp_n: -1,
                 label_n: -1,
             },
+            symbol_table: nodes::SymbolTable::new()
         }
     }
 
-    fn make_temporary(&mut self) -> String {
+    fn _make_temporary(&mut self) -> String {
         self.context.tmp_n += 1;
         format!(".tmp{}", self.context.tmp_n)
+    }
+
+    fn make_var(&mut self, name: String, type_: nodes::Type) -> nodes::Value {
+        self.symbol_table.insert(name.clone(), type_);
+
+        nodes::Value::Identifier(name)
+    }
+
+    fn make_tacky_var(&mut self, type_: nodes::Type) -> nodes::Value {
+        let name = self._make_temporary();
+
+        self.make_var(name, type_)
     }
 
     fn make_label(&mut self) -> String {
@@ -37,7 +51,8 @@ impl Tacky {
 
     fn convert_type(&self, ty: &parser::nodes::Type) -> nodes::Type {
         match ty {
-            parser::nodes::Type::Int => nodes::Type::Int,
+            parser::nodes::Type::I32 => nodes::Type::I32,
+            parser::nodes::Type::I64 => nodes::Type::I64,
             parser::nodes::Type::Fn(ref args, ref ret) => {
                 let mut arg_types = Vec::new();
                 for arg in args {
@@ -45,7 +60,11 @@ impl Tacky {
                 }
                 nodes::Type::Fn(arg_types, Box::new(self.convert_type(ret)))
             }
-            parser::nodes::Type::Identifier(ident) => nodes::Type::Identifier(ident.value.clone()),
+            #[allow(unreachable_patterns)]
+            _ => {
+                panic!("Not implemented yet: {:?}", ty);
+            }
+            // parser::nodes::Type::Identifier(ident) => nodes::Type::Identifier(ident.value.clone()),
         }
     }
 
@@ -62,8 +81,13 @@ impl Tacky {
 
             let ret_type = self.convert_type(&statement.return_type);
 
+            // add the args to the symbol table
+            for arg in statement.params.iter() {
+                self.make_var(arg.ident.value.clone(), self.convert_type(&arg.kind));
+            }
+
             self.emit_tacky_statement(&*statement.body, &mut instructions);
-            instructions.instructions.push(nodes::Instruction::Return(nodes::Value::Constant(0)));
+            instructions.instructions.push(nodes::Instruction::Return(nodes::Value::Constant(nodes::Constant::I32(0))));
             program.function_definitions.push(nodes::FunctionDefinition {
                 function_name: statement.function_name.clone(),
                 body: instructions,
@@ -96,10 +120,10 @@ impl Tacky {
                 self.emit_tacky_expression(&*expression.expression, instructions);
             }
             parser::nodes::Statement::VariableDeclaration(ref decl) => {
-                let var = nodes::Value::Identifier(decl.ident.value.clone());
+                let var = self.make_var(decl.ident.value.clone(), self.convert_type(&decl.kind));
                 let value = match &decl.expr {
                     Some(value) => self.emit_tacky_expression(&*value, instructions),
-                    None => nodes::Value::Constant(0),
+                    None => nodes::Value::Constant(nodes::Constant::I32(0))
                 };
                 instructions.instructions.push(nodes::Instruction::Copy(nodes::Copy {
                     src: value,
@@ -107,16 +131,16 @@ impl Tacky {
                 }));
             }
             parser::nodes::Statement::IfStatement(ref if_statement) => {
-                let cond = self.make_temporary();
+                let cond = self.make_tacky_var(self.get_tacky_type(&if_statement.condition));
                 let else_label = self.make_label();
                 let condition = self.emit_tacky_expression(&*if_statement.condition, instructions);
                 instructions.instructions.push(nodes::Instruction::Copy(nodes::Copy {
                     src: condition,
-                    dest: nodes::Value::Identifier(cond.clone()),
+                    dest: cond.clone(),
                 }));
                 instructions.instructions.push(nodes::Instruction::JumpIfZero(
                     else_label.clone(),
-                    nodes::Value::Identifier(cond),
+                    cond,
                 ));
                 self.emit_tacky_statement(&*if_statement.consequence, instructions);
                 if if_statement.alternative.is_some() {
@@ -133,15 +157,15 @@ impl Tacky {
                 let start_label = format!(".L_continue_{}", while_statement.label);
                 let end_label = format!(".L_break_{}", while_statement.label);
                 instructions.instructions.push(nodes::Instruction::Label(start_label.clone()));
-                let cond = self.make_temporary();
+                let cond = self.make_tacky_var(self.get_tacky_type(&while_statement.condition));
                 let condition = self.emit_tacky_expression(&*while_statement.condition, instructions);
                 instructions.instructions.push(nodes::Instruction::Copy(nodes::Copy {
                     src: condition,
-                    dest: nodes::Value::Identifier(cond.clone()),
+                    dest: cond.clone(),
                 }));
                 instructions.instructions.push(nodes::Instruction::JumpIfZero(
                     end_label.clone(),
-                    nodes::Value::Identifier(cond),
+                    cond,
                 ));
                 self.emit_tacky_statement(&*while_statement.body, instructions);
                 instructions.instructions.push(nodes::Instruction::Jump(start_label));
@@ -157,17 +181,78 @@ impl Tacky {
         };
     }
 
+    fn get_tacky_type(&self, expression: &parser::nodes::Expression) -> nodes::Type {
+        self.convert_type(&self.get_parser_type(expression))
+    }
+
+    fn get_parser_type(&self, expression: &parser::nodes::Expression) -> parser::nodes::Type {
+        match expression {
+            parser::nodes::Expression::Literal(_, type_) => {
+                if type_.is_none() {
+                    panic!("Type not specified for literal");
+                }
+              type_.clone().unwrap()
+            },
+            parser::nodes::Expression::UnaryOp(_, exp, type_) => {
+                if type_.is_none() {
+                    panic!("Type not specified for unary expression");
+                }
+              type_.clone().unwrap()
+            },
+            parser::nodes::Expression::BinOp(_, _, _, type_) => {
+                if type_.is_none() {
+                    panic!("Type not specified for binary expression");
+                }
+              type_.clone().unwrap()
+            },
+            parser::nodes::Expression::Var(_, type_) => {
+                if type_.is_none() {
+                    panic!("Type not specified for variable");
+                }
+              type_.clone().unwrap()
+            },
+            parser::nodes::Expression::Assignment(_, _, type_) => {
+              type_.clone().unwrap()
+            },
+            parser::nodes::Expression::FunctionCall(_, _, type_) => {
+                if type_.is_none() {
+                    panic!("Type not specified for function call");
+                }
+              type_.clone().unwrap()
+            },
+            parser::nodes::Expression::Cast(_, type_) => {
+                if type_.is_none() {
+                    panic!("Type not specified for cast");
+                }
+                type_.clone().unwrap()
+            },
+            #[allow(unreachable_patterns)]
+            _ => panic!("Not implemented yet")
+        }
+    }
+
     fn emit_tacky_expression(&mut self, expression: &parser::nodes::Expression, instructions: &mut nodes::CompoundInstruction) -> nodes::Value {
         match expression {
-            parser::nodes::Expression::Literal(literal) => {
+            parser::nodes::Expression::Literal(literal, type_) => {
+                if type_.is_none() {
+                    panic!("Type not specified for literal");
+                }
                 match literal {
-                    parser::nodes::Literal::Int(i) => nodes::Value::Constant(*i),
+                    parser::nodes::Literal::I32(i) => nodes::Value::Constant(nodes::Constant::I32(*i)),
+                    parser::nodes::Literal::I64(i) => nodes::Value::Constant(nodes::Constant::I64(*i)),
+                    #[allow(unreachable_patterns)]
                     _ => panic!("Not implemented yet")
                 }
             },
-            parser::nodes::Expression::UnaryOp(op, exp) => {
+            parser::nodes::Expression::UnaryOp(op, exp, type_) => {
+                if type_.is_none() {
+                    panic!("Type not specified for unary expression");
+                }
+
+                let type_ = self.convert_type(&type_.as_ref().unwrap());
+
                 let src = self.emit_tacky_expression(&*exp, instructions);
-                let dest = nodes::Value::Identifier(self.make_temporary());
+                let dest = self.make_tacky_var(type_);
                 instructions.instructions.push(nodes::Instruction::Unary(nodes::Unary {
                     operator: match op {
                         parser::nodes::UnaryOp::Negation => nodes::UnaryOperator::Negate,
@@ -179,7 +264,9 @@ impl Tacky {
                 }));
                 dest
             },
-            parser::nodes::Expression::BinOp(exp1, op, exp2) => {
+            parser::nodes::Expression::BinOp(exp1, op, exp2, type_) => {
+                let type_ = self.convert_type(&type_.as_ref().unwrap());
+
                 let operator = match op {
                     parser::nodes::BinOp::Add => nodes::BinaryOperator::Add,
                     parser::nodes::BinOp::Subtract => nodes::BinaryOperator::Subtract,
@@ -211,9 +298,9 @@ impl Tacky {
                     } else {
                         instructions.instructions.push(nodes::Instruction::JumpIfNotZero(end.clone(), src1.clone()));
                     }
-                    let dest = nodes::Value::Identifier(self.make_temporary());
+                    let dest = self.make_tacky_var(nodes::Type::I32);
                     instructions.instructions.push(nodes::Instruction::Copy(nodes::Copy {
-                        src: nodes::Value::Constant(1),
+                        src: nodes::Value::Constant(nodes::Constant::I32(0)),
                         dest: dest.clone(),
                     }));
                     instructions.instructions.push(nodes::Instruction::Label(end));
@@ -221,7 +308,7 @@ impl Tacky {
                 }
                 let src1 = self.emit_tacky_expression(&*exp1, instructions);
                 let src2 = self.emit_tacky_expression(&*exp2, instructions);
-                let dest = nodes::Value::Identifier(self.make_temporary());
+                let dest = self.make_tacky_var(type_);
                 instructions.instructions.push(nodes::Instruction::Binary(nodes::Binary {
                     operator,
                     src1,
@@ -230,10 +317,10 @@ impl Tacky {
                 }));
                 dest
             },
-            parser::nodes::Expression::Var(ident) => {
+            parser::nodes::Expression::Var(ident, type_) => {
                 nodes::Value::Identifier(ident.value.clone())
             },
-            parser::nodes::Expression::Assignment(ident, exp) => {
+            parser::nodes::Expression::Assignment(ident, exp, _) => {
                 let value = self.emit_tacky_expression(&*exp, instructions);
                 instructions.instructions.push(nodes::Instruction::Copy(nodes::Copy {
                     src: value.clone(),
@@ -241,17 +328,46 @@ impl Tacky {
                 }));
                 value
             },
-            parser::nodes::Expression::FunctionCall(name, args) => {
+            parser::nodes::Expression::FunctionCall(name, args, type_) => {
+                let type_ = self.convert_type(&type_.as_ref().unwrap());
                 let mut arguments = Vec::new();
                 for arg in args {
                     arguments.push(self.emit_tacky_expression(&*arg, instructions));
                 }
-                let dest = nodes::Value::Identifier(self.make_temporary());
+                let dest = self.make_tacky_var(type_);
                 instructions.instructions.push(nodes::Instruction::FunCall(nodes::FunCall {
                     function_name: name.clone(),
                     arguments,
                     dest: dest.clone(),
                 }));
+                dest
+            },
+            parser::nodes::Expression::Cast(expr, type_) => {
+                if type_.is_none() {
+                    panic!("Type not specified for cast");
+                }
+
+                let u_type = self.convert_type(&type_.as_ref().unwrap());
+
+                let value = self.emit_tacky_expression(&*expr, instructions);
+
+                if self.get_tacky_type(&expr) == u_type {
+                    return value;
+                }
+                let dest = self.make_tacky_var(u_type.clone());
+
+                let trun_val = if value.is_constant() {
+                    return nodes::Value::Constant(nodes::Constant::I32(value.as_constant().as_i32()));
+                } else {
+                    value.clone()
+                };
+
+                if u_type == nodes::Type::I64 {
+                    instructions.instructions.push(nodes::Instruction::SignExtend(value, dest.clone()));
+                } else {
+                    instructions.instructions.push(nodes::Instruction::Truncate(trun_val, dest.clone())); // todo: maybe get rid of this?
+                }
+
                 dest
             },
             #[allow(unreachable_patterns)]
@@ -272,11 +388,11 @@ mod tests {
             function_definitions: vec![
                 parser::nodes::FunctionDeclaration {
                     function_name: "main".to_string(),
-                    return_type: parser::nodes::Type::Int,
+                    return_type: parser::nodes::Type::I32,
                     body: Box::new(parser::nodes::Statement::Compound(parser::nodes::CompoundStatement {
                         statements: vec![
                             Box::new(parser::nodes::Statement::ReturnStatement(parser::nodes::ReturnStatement {
-                                return_value: Box::new(parser::nodes::Expression::Literal(parser::nodes::Literal::Int(0))),
+                                return_value: Box::new(parser::nodes::Expression::Literal(parser::nodes::Literal::I32(0), Some(parser::nodes::Type::I32))),
                             })),
                         ],
                     })),
@@ -288,10 +404,10 @@ mod tests {
         let program = tacky.generate();
         assert_eq!(program.function_definitions.len(), 1);
         assert_eq!(program.function_definitions[0].function_name, "main");
-        assert_eq!(program.function_definitions[0].return_type, nodes::Type::Int);
+        assert_eq!(program.function_definitions[0].return_type, nodes::Type::I32);
         assert_eq!(program.function_definitions[0].body.instructions.len(), 2);
-        assert_eq!(program.function_definitions[0].body.instructions[0], nodes::Instruction::Return(nodes::Value::Constant(0)));
-        assert_eq!(program.function_definitions[0].body.instructions[1], nodes::Instruction::Return(nodes::Value::Constant(0))); // Return 0 is added by the generator so if theres no return statement it doesnt bug out
+        assert_eq!(program.function_definitions[0].body.instructions[0], nodes::Instruction::Return(nodes::Value::Constant(nodes::Constant::I32(0))));
+        assert_eq!(program.function_definitions[0].body.instructions[1], nodes::Instruction::Return(nodes::Value::Constant(nodes::Constant::I32(0)))); // Return 0 is added by the generator so if theres no return statement it doesnt bug out
     }
 
     #[test]
@@ -300,16 +416,16 @@ mod tests {
             function_definitions: vec![
                 parser::nodes::FunctionDeclaration {
                     function_name: "main".to_string(),
-                    return_type: parser::nodes::Type::Int,
+                    return_type: parser::nodes::Type::I32,
                     body: Box::new(parser::nodes::Statement::Compound(parser::nodes::CompoundStatement {
                         statements: vec![
                             Box::new(parser::nodes::Statement::VariableDeclaration(parser::nodes::VariableDeclaration {
                                 ident: parser::nodes::Identifier { value: "x".to_string() },
-                                expr: Some(Box::new(parser::nodes::Expression::Literal(parser::nodes::Literal::Int(42)))),
-                                kind: parser::nodes::Type::Int,
+                                expr: Some(Box::new(parser::nodes::Expression::Literal(parser::nodes::Literal::I32(42), Some(parser::nodes::Type::I32)))),
+                                kind: parser::nodes::Type::I32,
                             })),
                             Box::new(parser::nodes::Statement::ReturnStatement(parser::nodes::ReturnStatement {
-                                return_value: Box::new(parser::nodes::Expression::Var(parser::nodes::Identifier { value: "x".to_string() })),
+                                return_value: Box::new(parser::nodes::Expression::Var(parser::nodes::Identifier { value: "x".to_string() }, Some(parser::nodes::Type::I32))),
                             })),
                         ],
                     })),
@@ -321,14 +437,14 @@ mod tests {
         let program = tacky.generate();
         assert_eq!(program.function_definitions.len(), 1);
         assert_eq!(program.function_definitions[0].function_name, "main");
-        assert_eq!(program.function_definitions[0].return_type, nodes::Type::Int);
+        assert_eq!(program.function_definitions[0].return_type, nodes::Type::I32);
         assert_eq!(program.function_definitions[0].body.instructions.len(), 3);
         assert_eq!(program.function_definitions[0].body.instructions[0], nodes::Instruction::Copy(nodes::Copy {
-            src: nodes::Value::Constant(42),
+            src: nodes::Value::Constant(nodes::Constant::I32(42)),
             dest: nodes::Value::Identifier("x".to_string()),
         }));
         assert_eq!(program.function_definitions[0].body.instructions[1], nodes::Instruction::Return(nodes::Value::Identifier("x".to_string())));
-        assert_eq!(program.function_definitions[0].body.instructions[2], nodes::Instruction::Return(nodes::Value::Constant(0))); // Return 0 is added by the generator so if theres no return statement it doesnt bug out
+        assert_eq!(program.function_definitions[0].body.instructions[2], nodes::Instruction::Return(nodes::Value::Constant(nodes::Constant::I32(0)))); // Return 0 is added by the generator so if theres no return statement it doesnt bug out
     }
 
     #[test]
@@ -337,11 +453,11 @@ mod tests {
             function_definitions: vec![
                 parser::nodes::FunctionDeclaration {
                     function_name: "main".to_string(),
-                    return_type: parser::nodes::Type::Int,
+                    return_type: parser::nodes::Type::I32,
                     body: Box::new(parser::nodes::Statement::Compound(parser::nodes::CompoundStatement {
                         statements: vec![
                             Box::new(parser::nodes::Statement::ReturnStatement(parser::nodes::ReturnStatement {
-                                return_value: Box::new(parser::nodes::Expression::UnaryOp(parser::nodes::UnaryOp::Negation, Box::new(parser::nodes::Expression::Literal(parser::nodes::Literal::Int(42))))),
+                                return_value: Box::new(parser::nodes::Expression::UnaryOp(parser::nodes::UnaryOp::Negation, Box::new(parser::nodes::Expression::Literal(parser::nodes::Literal::I32(42), Some(parser::nodes::Type::I32))), Some(parser::nodes::Type::I32))),
                             })),
                         ],
                     })),
@@ -353,14 +469,14 @@ mod tests {
         let program = tacky.generate();
         assert_eq!(program.function_definitions.len(), 1);
         assert_eq!(program.function_definitions[0].function_name, "main");
-        assert_eq!(program.function_definitions[0].return_type, nodes::Type::Int);
+        assert_eq!(program.function_definitions[0].return_type, nodes::Type::I32);
         assert_eq!(program.function_definitions[0].body.instructions.len(), 3);
         assert_eq!(program.function_definitions[0].body.instructions[0], nodes::Instruction::Unary(nodes::Unary {
             operator: nodes::UnaryOperator::Negate,
-            src: nodes::Value::Constant(42),
+            src: nodes::Value::Constant(nodes::Constant::I32(42)),
             dest: nodes::Value::Identifier(".tmp0".to_string()),
         }));
         assert_eq!(program.function_definitions[0].body.instructions[1], nodes::Instruction::Return(nodes::Value::Identifier(".tmp0".to_string())));
-        assert_eq!(program.function_definitions[0].body.instructions[2], nodes::Instruction::Return(nodes::Value::Constant(0))); // Return 0 is added by the generator so if theres no return statement it doesnt bug out
+        assert_eq!(program.function_definitions[0].body.instructions[2], nodes::Instruction::Return(nodes::Value::Constant(nodes::Constant::I32(0)))); // Return 0 is added by the generator so if theres no return statement it doesnt bug out
     }
 }

@@ -1,14 +1,7 @@
-fn recurse(amount: int, i: int, res: int) -> int {
-    if amount != i {
-        return recurse(amount, i+1, res*i);
-    }
-    return res*i;
-}
+fn main() -> i32 {
+    let abc: i64 = 5;
 
-fn recurse_start(amount: int) -> int {
-    return recurse(amount, 1, 1) - 1;
-}
+    let abc32: i32 = abc;
 
-fn main(argc: int) -> int {
-    return recurse_start(10);
+    return abc32;
 }

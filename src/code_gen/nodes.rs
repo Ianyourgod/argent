@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use std::collections::HashMap;
+use std::fmt::Display;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Program {
@@ -35,7 +36,8 @@ pub struct FunctionDefinition {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
-    Int,
+    I32,
+    I64,
     Fn(Vec<Type>, Box<Type>),
     Identifier(String),
 }
@@ -58,17 +60,18 @@ impl FunctionDefinition {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Instruction {
     Mov(BinOp),
+    Movsx(Operand, Operand),
     Ret,
     AllocateStack(usize),
     DeallocateStack(usize),
-    Push(UnaryOp),
+    Push(Operand),
     Pop(UnaryOp),
     Add(BinOp),
     Sub(BinOp),
     Mul(BinOp),
     Div(UnaryOp),
     Neg(UnaryOp),
-    Cdq,
+    Cdq(Suffix),
     Label(String),
     Cmp(BinOp),
     Jump(String),
@@ -91,19 +94,19 @@ pub enum CondCode {
 pub struct BinOp {
     pub dest: Operand,
     pub src: Operand,
-    pub suffix: Option<String>,
+    pub suffix: Suffix,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct UnaryOp {
     pub operand: Operand,
-    pub suffix: Option<String>,
+    pub suffix: Suffix,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Operand {
     Register(Reg),
-    Immediate(i32),
+    Immediate(i64),
     StackAllocate(isize),
     Pseudo(Identifier),
 }
@@ -124,6 +127,25 @@ pub enum Reg {
     R9,
     R10,
     R11
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Suffix {
+    B,
+    W,
+    L,
+    Q,
+}
+
+impl Display for Suffix {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> core::fmt::Result {
+        match self {
+            Suffix::B => write!(f, "b"),
+            Suffix::W => write!(f, "w"),
+            Suffix::L => write!(f, "l"),
+            Suffix::Q => write!(f, "q"),
+        }
+    }
 }
 
 fn reg_to_str(reg: Reg, size: Option<u8>) -> String {

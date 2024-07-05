@@ -31,13 +31,13 @@ fn compile_program(input: String, input_name: String, outfile_name: &String, inc
     let program = parser.parse_program();
 
     let mut resolver = semantic_analysis::Analysis::new(program.clone());
-    let program = resolver.run();
+    let (program, symbol_table) = resolver.run();
 
     let mut tacky = tacky::Tacky::new(program);
     let program = tacky.generate();
 
 
-    let mut compiler = code_gen::CodeGen::new(program, Some(input));
+    let mut compiler = code_gen::CodeGen::new(program, tacky.symbol_table, Some(input));
     let assembly_asm = compiler.generate_code();
     
     let emitter = emitter::Emitter::new(assembly_asm);

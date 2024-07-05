@@ -72,18 +72,19 @@ pub struct CompoundStatement {
 // allow debug clone and equal (compare? wtv its called)
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
-    Literal(Literal),
-    Var(Identifier),
-    BinOp(Box<Expression>, BinOp, Box<Expression>),
-    UnaryOp(UnaryOp, Box<Expression>),
-    Assignment(Identifier, Box<Expression>),
-    FunctionCall(String, Vec<Box<Expression>>),
+    Literal(Literal, Option<Type>),
+    Var(Identifier, Option<Type>),
+    BinOp(Box<Expression>, BinOp, Box<Expression>, Option<Type>),
+    UnaryOp(UnaryOp, Box<Expression>, Option<Type>),
+    Assignment(Identifier, Box<Expression>, Option<Type>),
+    FunctionCall(String, Vec<Box<Expression>>, Option<Type>),
+    Cast(Box<Expression>, Option<Type>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Literal {
-    Int(i32),
-    Bool(bool),
+    I32(i32),
+    I64(i64),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -117,9 +118,10 @@ pub enum UnaryOp {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
-    Int,
+    I32,
+    I64,
     Fn(Vec<Type>, Box<Type>),
-    Identifier(Identifier)
+    //Identifier(Identifier)
 }
 
 // TODO: improve line stuff for errors
