@@ -22,6 +22,10 @@ fn help(err_code: i32) {
 }
 
 fn compile_program(input: String, input_name: String, outfile_name: &String, include_output: bool) {
+    if include_output {
+        println!("{} {}", "Compiling".bright_green(), input_name);
+    }
+
     let lexer = lexer::Lexer::new(input.clone());
     let mut parser = parser::Parser::new(lexer);
 

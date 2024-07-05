@@ -1,7 +1,10 @@
-fn main() -> i32 {
-    let abc: i64 = 5;
+fn main() -> i64 {
+    let abc: i64 = 4294967368;
+    let def: i64 = 4294967296;
 
-    let abc32: i32 = abc;
+    putchar(abc - def);
+    putchar(abc - def + 1);
+    putchar(10);
 
-    return abc32;
+    return abc - abc;
 }
