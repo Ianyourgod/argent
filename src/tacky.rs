@@ -51,7 +51,9 @@ impl Tacky {
 
     fn convert_type(&self, ty: &parser::nodes::Type) -> nodes::Type {
         match ty {
-            parser::nodes::Type::I32 => nodes::Type::I32,
+            parser::nodes::Type::I32 |
+            parser::nodes::Type::GenericNumber |
+            parser::nodes::Type::GenericInt => nodes::Type::I32,
             parser::nodes::Type::I64 => nodes::Type::I64,
             parser::nodes::Type::Fn(ref args, ref ret) => {
                 let mut arg_types = Vec::new();
@@ -238,10 +240,12 @@ impl Tacky {
                     panic!("Type not specified for literal");
                 }
                 match type_.as_ref().unwrap() {
-                    parser::nodes::Type::I32 => nodes::Value::Constant(nodes::Constant::I32(literal.as_i32())),
+                    parser::nodes::Type::I32 |
+                    parser::nodes::Type::GenericInt |
+                    parser::nodes::Type::GenericNumber => nodes::Value::Constant(nodes::Constant::I32(literal.as_i32())),
                     parser::nodes::Type::I64 => nodes::Value::Constant(nodes::Constant::I64(literal.as_i64())),
                     #[allow(unreachable_patterns)]
-                    _ => panic!("Not implemented yet")
+                    unin => panic!("Not implemented yet: {:?}", unin)
                 }
             },
             parser::nodes::Expression::UnaryOp(op, exp, type_) => {
