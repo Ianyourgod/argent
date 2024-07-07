@@ -121,6 +121,7 @@ pub enum BinOp {
     Subtract,
     Multiply,
     Divide,
+    Modulo,
     And,
     Or,
     Equal,

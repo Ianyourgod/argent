@@ -13,6 +13,7 @@ pub enum TokenType {
     Subtract,
     Star,
     Divide,
+    Modulus,
     SemiColon,
     EOF,
     Error,
@@ -31,6 +32,7 @@ pub enum TokenType {
     SubtractAssign,
     MultiplyAssign,
     DivideAssign,
+    ModulusAssign,
     Colon,
     QuestionMark,
     Comma,
@@ -258,6 +260,18 @@ impl Lexer {
                 self.read_char();
                 tok
             }
+            '%' => {
+                let start_line = self.line;
+                let start_pos = self.line_pos;
+                self.read_char();
+                if self.ch == '=' {
+                    let tok = self.create_token(TokenType::ModulusAssign, BLANK, self.line, start_pos, 2);
+                    self.read_char();
+                    tok
+                } else {
+                    self.create_token(TokenType::Modulus, BLANK, start_line, start_pos, 1)
+                }
+            },
             '\0' => self.create_token(TokenType::EOF, BLANK, self.line, self.line_pos, 1),
             _ => {
                 if self.ch.is_alphabetic() || self.ch == '_' {

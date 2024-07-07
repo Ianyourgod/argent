@@ -82,7 +82,7 @@ impl Emitter {
                         output.push_str(if suffix==&code_gen::nodes::Suffix::L {
                             "    cqd\n"
                         } else {
-                            "    cqt\n"
+                            "    cqo\n"
                         });
                     }
                     code_gen::nodes::Instruction::AllocateStack(allocate_stack) => {

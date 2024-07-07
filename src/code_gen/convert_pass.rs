@@ -204,6 +204,23 @@ impl Pass {
                             suffix: src_type_suf,
                         }));
                     },
+                    tacky::nodes::BinaryOperator::Modulo => {
+                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
+                            src: src1,
+                            dest: nodes::Operand::Register(nodes::Reg::AX),
+                            suffix: src_type_suf.clone(),
+                        }));
+                        instructions.push(nodes::Instruction::Cdq(src_type_suf.clone()));
+                        instructions.push(nodes::Instruction::Div(nodes::UnaryOp {
+                            operand: src2,
+                            suffix: src_type_suf.clone(),
+                        }));
+                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
+                            src: nodes::Operand::Register(nodes::Reg::DX),
+                            dest,
+                            suffix: src_type_suf,
+                        }));
+                    }
                     tacky::nodes::BinaryOperator::And => panic!(),
                     tacky::nodes::BinaryOperator::Or => panic!(),
                     tacky::nodes::BinaryOperator::GreaterThan => {

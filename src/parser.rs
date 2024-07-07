@@ -393,14 +393,14 @@ impl Parser {
         match token {
             lexer::TokenType::Assign | 
             lexer::TokenType::AddAssign | lexer::TokenType::SubtractAssign |
-            lexer::TokenType::MultiplyAssign | lexer::TokenType::DivideAssign => 1,
+            lexer::TokenType::MultiplyAssign | lexer::TokenType::DivideAssign | lexer::TokenType::ModulusAssign => 1,
             lexer::TokenType::Or => 5,
             lexer::TokenType::And => 10,
             lexer::TokenType::Equal | lexer::TokenType::NotEqual => 30,
             lexer::TokenType::LessThan | lexer::TokenType::GreaterThan |
             lexer::TokenType::LessThanEqual | lexer::TokenType::GreaterThanEqual => 35,
             lexer::TokenType::Add | lexer::TokenType::Subtract => 45,
-            lexer::TokenType::Star | lexer::TokenType::Divide => 50,
+            lexer::TokenType::Star | lexer::TokenType::Divide | lexer::TokenType::Modulus => 50,
             lexer::TokenType::LParen => 55,
             _ => 0,
         }
@@ -412,6 +412,7 @@ impl Parser {
             lexer::TokenType::Subtract => nodes::BinOp::Subtract,
             lexer::TokenType::Star => nodes::BinOp::Multiply,
             lexer::TokenType::Divide => nodes::BinOp::Divide,
+            lexer::TokenType::Modulus => nodes::BinOp::Modulo,
             lexer::TokenType::Equal => nodes::BinOp::Equal,
             lexer::TokenType::NotEqual => nodes::BinOp::NotEqual,
             lexer::TokenType::LessThan => nodes::BinOp::LessThan,
@@ -443,13 +444,15 @@ impl Parser {
         match self.cur_token.kind {
             lexer::TokenType::Add | lexer::TokenType::Subtract |
             lexer::TokenType::Star | lexer::TokenType::Divide |
+            lexer::TokenType::Modulus |
             lexer::TokenType::Equal | lexer::TokenType::NotEqual |
             lexer::TokenType::LessThan | lexer::TokenType::GreaterThan |
             lexer::TokenType::LessThanEqual | lexer::TokenType::GreaterThanEqual |
             lexer::TokenType::And | lexer::TokenType::Or => true,
             lexer::TokenType::Assign |
             lexer::TokenType::AddAssign | lexer::TokenType::SubtractAssign |
-            lexer::TokenType::MultiplyAssign | lexer::TokenType::DivideAssign => true,
+            lexer::TokenType::MultiplyAssign | lexer::TokenType::DivideAssign |
+            lexer::TokenType::ModulusAssign => true,
             _ => false,
         }
     }
@@ -458,7 +461,7 @@ impl Parser {
         match self.cur_token.kind {
             lexer::TokenType::Assign |
             lexer::TokenType::AddAssign | lexer::TokenType::SubtractAssign |
-            lexer::TokenType::MultiplyAssign | lexer::TokenType::DivideAssign => true,
+            lexer::TokenType::MultiplyAssign | lexer::TokenType::DivideAssign | lexer::TokenType::ModulusAssign => true,
             _ => false,
         }
     }
@@ -501,6 +504,9 @@ impl Parser {
                     },
                     lexer::TokenType::DivideAssign => {
                         Box::new(nodes::Expression::BinOp(node.clone(), nodes::BinOp::Divide, parsed_expr, None))
+                    },
+                    lexer::TokenType::ModulusAssign => {
+                        Box::new(nodes::Expression::BinOp(node.clone(), nodes::BinOp::Modulo, parsed_expr, None))
                     },
                     _ => unreachable!(),
                 };

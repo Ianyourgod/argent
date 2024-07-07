@@ -1,0 +1,33 @@
+fn fib(n: i64) -> i64 {
+    let a: i64 = 1;
+    let b: i64 = 1;
+
+    let i: i64 = 1;
+    while i < n {
+        let old: i64 = a;
+        a = b;
+        b += old;
+        i += 1;
+    }
+    return b;
+}
+
+fn display_long_r(n: i64) -> i32 {
+    let y: i64 = n/10;
+    let d: i64 = n%10;
+    if y {
+        display_long_r(y);
+    }
+    putchar(48 + d);
+}
+
+fn display_long(n: i64) -> i32 {
+    display_long_r(n);
+    putchar(10);
+}
+
+fn main() -> i64 {
+    let out: i64 = fib(10);
+    display_long(out);
+    return 0;
+}

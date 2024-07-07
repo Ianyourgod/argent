@@ -272,6 +272,7 @@ impl Tacky {
                     parser::nodes::BinOp::Subtract => nodes::BinaryOperator::Subtract,
                     parser::nodes::BinOp::Multiply => nodes::BinaryOperator::Multiply,
                     parser::nodes::BinOp::Divide => nodes::BinaryOperator::Divide,
+                    parser::nodes::BinOp::Modulo => nodes::BinaryOperator::Modulo,
                     parser::nodes::BinOp::LessThan => nodes::BinaryOperator::LessThan,
                     parser::nodes::BinOp::LessThanEqual => nodes::BinaryOperator::LessThanEqual,
                     parser::nodes::BinOp::GreaterThan => nodes::BinaryOperator::GreaterThan,
