@@ -237,9 +237,9 @@ impl Tacky {
                 if type_.is_none() {
                     panic!("Type not specified for literal");
                 }
-                match literal {
-                    parser::nodes::Literal::I32(i) => nodes::Value::Constant(nodes::Constant::I32(*i)),
-                    parser::nodes::Literal::I64(i) => nodes::Value::Constant(nodes::Constant::I64(*i)),
+                match type_.as_ref().unwrap() {
+                    parser::nodes::Type::I32 => nodes::Value::Constant(nodes::Constant::I32(literal.as_i32())),
+                    parser::nodes::Type::I64 => nodes::Value::Constant(nodes::Constant::I64(literal.as_i64())),
                     #[allow(unreachable_patterns)]
                     _ => panic!("Not implemented yet")
                 }
@@ -396,7 +396,7 @@ mod tests {
                     body: Box::new(parser::nodes::Statement::Compound(parser::nodes::CompoundStatement {
                         statements: vec![
                             Box::new(parser::nodes::Statement::ReturnStatement(parser::nodes::ReturnStatement {
-                                return_value: Box::new(parser::nodes::Expression::Literal(parser::nodes::Literal::I32(0), Some(parser::nodes::Type::I32))),
+                                return_value: Box::new(parser::nodes::Expression::Literal(parser::nodes::Literal::GenericNumber(0), Some(parser::nodes::Type::I32))),
                             })),
                         ],
                     })),
@@ -425,7 +425,7 @@ mod tests {
                         statements: vec![
                             Box::new(parser::nodes::Statement::VariableDeclaration(parser::nodes::VariableDeclaration {
                                 ident: parser::nodes::Identifier { value: "x".to_string() },
-                                expr: Some(Box::new(parser::nodes::Expression::Literal(parser::nodes::Literal::I32(42), Some(parser::nodes::Type::I32)))),
+                                expr: Some(Box::new(parser::nodes::Expression::Literal(parser::nodes::Literal::GenericNumber(42), Some(parser::nodes::Type::I32)))),
                                 kind: parser::nodes::Type::I32,
                             })),
                             Box::new(parser::nodes::Statement::ReturnStatement(parser::nodes::ReturnStatement {
@@ -461,7 +461,7 @@ mod tests {
                     body: Box::new(parser::nodes::Statement::Compound(parser::nodes::CompoundStatement {
                         statements: vec![
                             Box::new(parser::nodes::Statement::ReturnStatement(parser::nodes::ReturnStatement {
-                                return_value: Box::new(parser::nodes::Expression::UnaryOp(parser::nodes::UnaryOp::Negation, Box::new(parser::nodes::Expression::Literal(parser::nodes::Literal::I32(42), Some(parser::nodes::Type::I32))), Some(parser::nodes::Type::I32))),
+                                return_value: Box::new(parser::nodes::Expression::UnaryOp(parser::nodes::UnaryOp::Negation, Box::new(parser::nodes::Expression::Literal(parser::nodes::Literal::GenericNumber(42), Some(parser::nodes::Type::I32))), Some(parser::nodes::Type::I32))),
                             })),
                         ],
                     })),

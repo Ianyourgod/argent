@@ -83,28 +83,32 @@ pub enum Expression {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Literal {
-    I32(i32),
+    GenericInt(i32),
+    GenericNumber(i32),
     I64(i64),
 }
 
 impl Literal {
     pub fn get_type(&self) -> Type {
         match self {
-            Literal::I32(_) => Type::I32,
+            Literal::GenericInt(_) => Type::GenericInt,
+            Literal::GenericNumber(_) => Type::GenericNumber,
             Literal::I64(_) => Type::I64,
         }
     }
 
     pub fn as_i32(&self) -> i32 {
         match self {
-            Literal::I32(val) => *val,
+            Literal::GenericInt(val) => *val,
+            Literal::GenericNumber(val) => *val,
             Literal::I64(val) => *val as i32,
         }
     }
 
     pub fn as_i64(&self) -> i64 {
         match self {
-            Literal::I32(val) => *val as i64,
+            Literal::GenericInt(val) => *val as i64,
+            Literal::GenericNumber(val) => *val as i64,
             Literal::I64(val) => *val,
         }
     }
@@ -142,6 +146,8 @@ pub enum UnaryOp {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
+    GenericNumber,
+    GenericInt,
     I32,
     I64,
     Fn(Vec<Type>, Box<Type>),

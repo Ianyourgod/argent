@@ -526,10 +526,12 @@ impl Parser {
     fn parse_int_literal(&mut self) -> Box<nodes::Expression> {
         let int = self.cur_token.literal.parse::<i64>().unwrap();
         self.next_token();
-        if int > i32::MAX as i64 {
-            Box::new(nodes::Expression::Literal(nodes::Literal::I64(int), None))
+        if int > i32::MAX as i64 || int < i32::MIN as i64 {
+            Box::new(nodes::Expression::Literal(nodes::Literal::I64(int), Some(nodes::Type::I64)))
+        } else if int < 0 {
+            Box::new(nodes::Expression::Literal(nodes::Literal::GenericInt(int as i32), Some(nodes::Type::GenericInt)))
         } else {
-            Box::new(nodes::Expression::Literal(nodes::Literal::I32(int as i32), None))
+            Box::new(nodes::Expression::Literal(nodes::Literal::GenericNumber(int as i32), Some(nodes::Type::GenericNumber)))
         }
     }
 
@@ -689,16 +691,16 @@ mod tests {
                         assert_eq!(c.statements.len(), 2);
                         assert_eq!(c.statements[0], Box::new(nodes::Statement::IfStatement(nodes::IfStatement {
                             condition: Box::new(nodes::Expression::BinOp(
-                                Box::new(nodes::Expression::Literal(nodes::Literal::I32(1), None)),
+                                Box::new(nodes::Expression::Literal(nodes::Literal::GenericNumber(1), None)),
                                 nodes::BinOp::Equal,
-                                Box::new(nodes::Expression::Literal(nodes::Literal::I32(1), None)),
+                                Box::new(nodes::Expression::Literal(nodes::Literal::GenericNumber(1), None)),
                                 None
                             )),
                             consequence: Box::new(nodes::Statement::Compound(nodes::CompoundStatement { statements: vec![] })),
                             alternative: None,
                         })));
                         assert_eq!(c.statements[1], Box::new(nodes::Statement::ReturnStatement(nodes::ReturnStatement {
-                            return_value: Box::new(nodes::Expression::Literal(nodes::Literal::I32(6), None))
+                            return_value: Box::new(nodes::Expression::Literal(nodes::Literal::GenericNumber(6), None))
                         })));
                     },
                     _ => panic!("expected compound statement"),

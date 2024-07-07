@@ -227,7 +227,7 @@ mod tests {
                             Box::new(nodes::Statement::VariableDeclaration(nodes::VariableDeclaration {
                                 kind: nodes::Type::I32,
                                 ident: nodes::Identifier { value: "a".to_string() },
-                                expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::I32(5), None))),
+                                expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::GenericNumber(5), None))),
                             })),
                             Box::new(nodes::Statement::ExpressionStatement(nodes::ExpressionStatement {
                                 expression: Box::new(nodes::Expression::Var(nodes::Identifier { value: "a".to_string() }, None)),
@@ -246,7 +246,7 @@ mod tests {
                 Box::new(nodes::Statement::VariableDeclaration(nodes::VariableDeclaration {
                     kind: nodes::Type::I32,
                     ident: nodes::Identifier { value: ".localvar0".to_string() },
-                    expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::I32(5), None))),
+                    expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::GenericNumber(5), None))),
                 })),
                 Box::new(nodes::Statement::ExpressionStatement(nodes::ExpressionStatement {
                     expression: Box::new(nodes::Expression::Var(nodes::Identifier { value: ".localvar0".to_string() }, None)),
@@ -269,12 +269,12 @@ mod tests {
                             Box::new(nodes::Statement::VariableDeclaration(nodes::VariableDeclaration {
                                 kind: nodes::Type::I32,
                                 ident: nodes::Identifier { value: "a".to_string() },
-                                expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::I32(5), None))),
+                                expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::GenericNumber(5), None))),
                             })),
                             Box::new(nodes::Statement::VariableDeclaration(nodes::VariableDeclaration {
                                 kind: nodes::Type::I32,
                                 ident: nodes::Identifier { value: "a".to_string() },
-                                expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::I32(5), None))),
+                                expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::GenericNumber(5), None))),
                             })),
                         ],
                     })),
@@ -299,10 +299,10 @@ mod tests {
                             Box::new(nodes::Statement::VariableDeclaration(nodes::VariableDeclaration {
                                 kind: nodes::Type::I32,
                                 ident: nodes::Identifier { value: "a".to_string() },
-                                expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::I32(5), None))),
+                                expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::GenericNumber(5), None))),
                             })),
                             Box::new(nodes::Statement::ExpressionStatement(nodes::ExpressionStatement {
-                                expression: Box::new(nodes::Expression::Assignment(nodes::Identifier { value: "a".to_string() }, Box::new(nodes::Expression::Literal(nodes::Literal::I32(10), None) ), None)),
+                                expression: Box::new(nodes::Expression::Assignment(nodes::Identifier { value: "a".to_string() }, Box::new(nodes::Expression::Literal(nodes::Literal::GenericNumber(10), None) ), None)),
                             })),
                         ],
                     })),
@@ -318,10 +318,10 @@ mod tests {
                 Box::new(nodes::Statement::VariableDeclaration(nodes::VariableDeclaration {
                     kind: nodes::Type::I32,
                     ident: nodes::Identifier { value: ".localvar0".to_string() },
-                    expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::I32(5), None))),
+                    expr: Some(Box::new(nodes::Expression::Literal(nodes::Literal::GenericNumber(5), None))),
                 })),
                 Box::new(nodes::Statement::ExpressionStatement(nodes::ExpressionStatement {
-                    expression: Box::new(nodes::Expression::Assignment(nodes::Identifier { value: ".localvar0".to_string() }, Box::new(nodes::Expression::Literal(nodes::Literal::I32(10), None) ), None)),
+                    expression: Box::new(nodes::Expression::Assignment(nodes::Identifier { value: ".localvar0".to_string() }, Box::new(nodes::Expression::Literal(nodes::Literal::GenericNumber(10), None) ), None)),
                 })),
             ],
         })));
@@ -339,7 +339,7 @@ mod tests {
                     body: Box::new(nodes::Statement::Compound(nodes::CompoundStatement {
                         statements: vec![
                             Box::new(nodes::Statement::ExpressionStatement(nodes::ExpressionStatement {
-                                expression: Box::new(nodes::Expression::Assignment(nodes::Identifier { value: "a".to_string() }, Box::new(nodes::Expression::Literal(nodes::Literal::I32(10), None) ), None)),
+                                expression: Box::new(nodes::Expression::Assignment(nodes::Identifier { value: "a".to_string() }, Box::new(nodes::Expression::Literal(nodes::Literal::GenericNumber(10), None) ), None)),
                             })),
                         ],
                     })),

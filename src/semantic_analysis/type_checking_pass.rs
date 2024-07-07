@@ -71,6 +71,17 @@ impl Pass {
         if typed_e.1 == t {
             typed_e.0
         } else {
+            let can_convert = vec![
+                (nodes::Type::GenericInt, nodes::Type::I32),
+                (nodes::Type::GenericInt, nodes::Type::I64),
+                (nodes::Type::GenericNumber, nodes::Type::I32),
+                (nodes::Type::GenericNumber, nodes::Type::I64)
+            ];
+
+            if !can_convert.contains(&(typed_e.1.clone(), t.clone())) {
+                panic!("Cannot convert {:?} to {:?}", typed_e.1, t);
+            }
+
             Box::new(nodes::Expression::Cast(typed_e.0, Some(t)))
         }
     }
@@ -89,19 +100,21 @@ impl Pass {
                 let type_ = self.convert_type(&decl.kind);
                 let ident = decl.ident.value.clone();
 
-                let typed_expr = match decl.expr {
-                    Some(expr) => self.typecheck_expression(expr, symbol_table),
-                    None => (Box::new(nodes::Expression::Literal(nodes::Literal::I32(0), Some(nodes::Type::I32))), nodes::Type::I32),
-                };
-
-                let converted_expr = self.convert_to(*typed_expr.0.clone(), type_.clone(), symbol_table);
-
                 if symbol_table.get(&ident).is_some() {
                     panic!("Variable {} already declared", ident);
                 }
             
                 symbol_table.insert(ident.clone(), type_.clone());
+
                 
+                let typed_expr = match decl.expr {
+                    Some(expr) => self.typecheck_expression(expr, symbol_table),
+                    None => {
+                        return Box::new(nodes::Statement::Empty);
+                    },
+                };
+
+                let converted_expr = self.convert_to(*typed_expr.0.clone(), type_.clone(), symbol_table);
 
                 Box::new(nodes::Statement::VariableDeclaration(nodes::VariableDeclaration {
                     kind: type_,
@@ -219,7 +232,8 @@ impl Pass {
             },
             nodes::Expression::Literal(literal, _) => {
                 match literal {
-                    nodes::Literal::I32(val) => (Box::new(nodes::Expression::Literal(nodes::Literal::I32(val), Some(nodes::Type::I32))), nodes::Type::I32),
+                    nodes::Literal::GenericNumber(val) => (Box::new(nodes::Expression::Literal(nodes::Literal::GenericNumber(val), Some(nodes::Type::GenericNumber))), nodes::Type::GenericNumber),
+                    nodes::Literal::GenericInt(val) => (Box::new(nodes::Expression::Literal(nodes::Literal::GenericInt(val), Some(nodes::Type::GenericInt))), nodes::Type::GenericInt),
                     nodes::Literal::I64(val) => (Box::new(nodes::Expression::Literal(nodes::Literal::I64(val), Some(nodes::Type::I64))), nodes::Type::I64),
                     #[allow(unreachable_patterns)]
                     _ => unimplemented!()
@@ -269,6 +283,8 @@ impl Pass {
 
     fn convert_type(&self, type_: &nodes::Type) -> nodes::Type {
         match type_ {
+            nodes::Type::GenericNumber => nodes::Type::GenericNumber,
+            nodes::Type::GenericInt => nodes::Type::GenericInt,
             nodes::Type::I32 => nodes::Type::I32,
             nodes::Type::I64 => nodes::Type::I64,
             //nodes::Type::Identifier(ident) => typed_ast::Type::Identifier(ident.value.clone()),
