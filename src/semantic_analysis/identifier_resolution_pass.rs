@@ -2,6 +2,7 @@ use crate::parser::nodes;
 
 pub struct Pass {
     pub program: nodes::Program,
+    pub global_identifier_number: i32,
 }
 
 #[derive(Clone)]
@@ -11,7 +12,12 @@ pub struct Context {
 
 pub struct VarMap {
     pub map: std::collections::HashMap<String, (String, bool)>,
-    pub tmp_n: i32,
+}
+
+impl VarMap {
+    pub fn new() -> VarMap {
+        VarMap { map: std::collections::HashMap::new() }
+    }
 }
 
 impl Clone for VarMap {
@@ -23,23 +29,22 @@ impl Clone for VarMap {
 
         VarMap {
             map: new_map,
-            tmp_n: self.tmp_n,
         }
     }
 }
 
 impl Context {
     fn new() -> Context {
-        Context { identifier_map: VarMap { map: std::collections::HashMap::new(), tmp_n: -1 } }
+        Context { identifier_map: VarMap::new() }
     }
 }
 
 impl Pass {
     pub fn new(program: &nodes::Program) -> Pass {
-        Pass { program: program.clone() }
+        Pass { program: program.clone(), global_identifier_number: -1 }
     }
 
-    pub fn run(&self) -> nodes::Program {
+    pub fn run(&mut self) -> nodes::Program {
         let mut program = nodes::Program {
             function_definitions: Vec::new(),
         };
@@ -55,19 +60,19 @@ impl Pass {
         program
     }
 
-    fn make_temporary(&self, context: &mut Context) -> String {
-        context.identifier_map.tmp_n += 1;
-        format!(".localvar{}", context.identifier_map.tmp_n)
+    fn make_local_var(&mut self, context: &mut Context) -> String {
+        self.global_identifier_number += 1;
+        format!(".localvar{}", self.global_identifier_number)
     }
 
-    fn resolve_statement(&self, statement: Box<nodes::Statement>, context: &mut Context) -> Box<nodes::Statement> {
+    fn resolve_statement(&mut self, statement: Box<nodes::Statement>, context: &mut Context) -> Box<nodes::Statement> {
         match *statement {
             nodes::Statement::VariableDeclaration(decl) => {
                 if context.identifier_map.map.contains_key(&decl.ident.value) && context.identifier_map.map.get(&decl.ident.value).unwrap().1 {
                     panic!("Variable {} already declared in scope", decl.ident.value);
                 }
 
-                let new_ident = self.make_temporary(context);
+                let new_ident = self.make_local_var(context);
 
                 context.identifier_map.map.insert(decl.ident.value.clone(), (new_ident.clone(), true));
 
@@ -125,7 +130,7 @@ impl Pass {
         }
     }
 
-    fn resolve_function_declaration(&self, func: nodes::FunctionDeclaration, context: &mut Context) -> nodes::FunctionDeclaration {
+    fn resolve_function_declaration(&mut self, func: nodes::FunctionDeclaration, context: &mut Context) -> nodes::FunctionDeclaration {
         if context.identifier_map.map.contains_key(&func.function_name) && context.identifier_map.map.get(&func.function_name).unwrap().1 {
             panic!("Function {} already declared in scope", func.function_name);
         }
@@ -137,14 +142,14 @@ impl Pass {
         let mut new_params: Vec<nodes::FunctionArg> = Vec::new();
 
         for param in func.params {
-            let var_name = self.make_temporary(&mut new_context);
+            let var_name = self.make_local_var(&mut new_context);
 
             new_params.push(nodes::FunctionArg {
                 kind: param.kind.clone(),
                 ident: nodes::Identifier { value: var_name.clone() },
             });
 
-            new_context.identifier_map.map.insert(param.ident.value, (var_name, true));
+            new_context.identifier_map.map.insert(param.ident.value.clone(), (var_name.clone(), true));
         }
 
         let new_body = self.resolve_statement(func.body, &mut new_context);
@@ -157,7 +162,7 @@ impl Pass {
         }
     }
 
-    fn resolve_expression(&self, expr: Box<nodes::Expression>, context: &mut Context) -> Box<nodes::Expression> {
+    fn resolve_expression(&mut self, expr: Box<nodes::Expression>, context: &mut Context) -> Box<nodes::Expression> {
         match *expr {
             nodes::Expression::Var(ref ident, _) => {
                 if context.identifier_map.map.contains_key(&ident.value) {
@@ -233,7 +238,7 @@ mod tests {
             ],
         };
 
-        let pass = Pass::new(&program);
+        let mut pass = Pass::new(&program);
         let new_program = pass.run();
 
         assert_eq!(new_program.function_definitions[0].body, Box::new(nodes::Statement::Compound(nodes::CompoundStatement {
@@ -277,7 +282,7 @@ mod tests {
             ],
         };
 
-        let pass = Pass::new(&program);
+        let mut pass = Pass::new(&program);
         pass.run();
     }
 
@@ -305,7 +310,7 @@ mod tests {
             ],
         };
 
-        let pass = Pass::new(&program);
+        let mut pass = Pass::new(&program);
         let new_program = pass.run();
 
         assert_eq!(new_program.function_definitions[0].body, Box::new(nodes::Statement::Compound(nodes::CompoundStatement {
@@ -342,7 +347,7 @@ mod tests {
             ],
         };
 
-        let pass = Pass::new(&program);
+        let mut pass = Pass::new(&program);
         pass.run();
     }
 }

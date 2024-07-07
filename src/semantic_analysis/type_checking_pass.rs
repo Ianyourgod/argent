@@ -99,8 +99,9 @@ impl Pass {
                 if symbol_table.get(&ident).is_some() {
                     panic!("Variable {} already declared", ident);
                 }
-
-                symbol_table.insert(ident, type_.clone());
+            
+                symbol_table.insert(ident.clone(), type_.clone());
+                
 
                 Box::new(nodes::Statement::VariableDeclaration(nodes::VariableDeclaration {
                     kind: type_,
@@ -112,7 +113,14 @@ impl Pass {
                 let type_ = self.typecheck_expression(ret.return_value, symbol_table);
 
                 if type_.1 != context.func_return_type {
-                    panic!("Return type mismatch: value {:?} and fn {:?}", type_.1, context.func_return_type);
+                    //panic!("Return type mismatch: value {:?} and fn {:?}", type_.1, context.func_return_type);
+
+                    // cast
+                    let converted_expr = self.convert_to(*type_.0.clone(), context.func_return_type.clone(), symbol_table);
+
+                    return Box::new(nodes::Statement::ReturnStatement(nodes::ReturnStatement {
+                        return_value: converted_expr,
+                    }));
                 }
 
                 Box::new(nodes::Statement::ReturnStatement(nodes::ReturnStatement {
@@ -245,9 +253,9 @@ impl Pass {
                     typed_args.push((converted_arg, typed_arg.1));
                 }
 
-                let arg_types = typed_args.iter().map(|arg| arg.1.clone()).collect::<Vec<_>>();
+                let func_call = nodes::Expression::FunctionCall(name, typed_args.iter().map(|arg| arg.0.clone()).collect(), Some(ret_type.clone()));
 
-                (Box::new(nodes::Expression::FunctionCall(name, typed_args.iter().map(|arg| arg.0.clone()).collect(), Some(ret_type.clone()))), ret_type.clone())
+                (Box::new(func_call), ret_type.clone())
             },
             nodes::Expression::Cast(expr, _) => {
                 let typed_expr = self.typecheck_expression(expr.clone(), symbol_table);

@@ -322,6 +322,7 @@ impl Tacky {
             },
             parser::nodes::Expression::Assignment(ident, exp, _) => {
                 let value = self.emit_tacky_expression(&*exp, instructions);
+
                 instructions.instructions.push(nodes::Instruction::Copy(nodes::Copy {
                     src: value.clone(),
                     dest: nodes::Value::Identifier(ident.value.clone()),
@@ -332,7 +333,9 @@ impl Tacky {
                 let type_ = self.convert_type(&type_.as_ref().unwrap());
                 let mut arguments = Vec::new();
                 for arg in args {
-                    arguments.push(self.emit_tacky_expression(&*arg, instructions));
+                    let value = self.emit_tacky_expression(&*arg, instructions);
+
+                    arguments.push(value);
                 }
                 let dest = self.make_tacky_var(type_);
                 instructions.instructions.push(nodes::Instruction::FunCall(nodes::FunCall {
@@ -356,15 +359,15 @@ impl Tacky {
                 }
                 let dest = self.make_tacky_var(u_type.clone());
 
-                let trun_val = if value.is_constant() {
-                    return nodes::Value::Constant(nodes::Constant::I32(value.as_constant().as_i32()));
-                } else {
-                    value.clone()
-                };
-
                 if u_type == nodes::Type::I64 {
                     instructions.instructions.push(nodes::Instruction::SignExtend(value, dest.clone()));
                 } else {
+                    let trun_val = if value.is_constant() {
+                        return nodes::Value::Constant(nodes::Constant::I32(value.as_constant().as_i32()));
+                    } else {
+                        value.clone()
+                    };
+
                     instructions.instructions.push(nodes::Instruction::Truncate(trun_val, dest.clone())); // todo: maybe get rid of this?
                 }
 

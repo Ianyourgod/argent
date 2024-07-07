@@ -18,8 +18,6 @@ impl Pass {
 
         for function in self.program.statements.clone() {
             let mut instructions: Vec<nodes::Instruction> = Vec::new();
-            
-            instructions.push(nodes::Instruction::AllocateStack((function.context.stack_offset + 15) & !15)); // Align stack to 16 bytes
 
             for statement in function.instructions {
                 self.emit_instruction(&statement, &mut instructions);

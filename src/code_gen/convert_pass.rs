@@ -47,7 +47,7 @@ impl Pass {
                 instructions.push(nodes::Instruction::Mov(nodes::BinOp {
                     src: nodes::Operand::Register(reg),
                     dest: nodes::Operand::Pseudo(nodes::Identifier { name: arg.0.clone() }),
-                    suffix: nodes::Suffix::L,
+                    suffix: self.type_to_suffix(&arg.1),
                 }));
             } else {
                 instructions.push(nodes::Instruction::Mov(nodes::BinOp {
@@ -208,8 +208,8 @@ impl Pass {
                     tacky::nodes::BinaryOperator::Or => panic!(),
                     tacky::nodes::BinaryOperator::GreaterThan => {
                         instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
-                            src: src1,
-                            dest: src2.clone(),
+                            src: src2.clone(),
+                            dest: src1,
                             suffix: src_type_suf,
                         }));
                         instructions.push(nodes::Instruction::Mov(nodes::BinOp {
@@ -221,8 +221,8 @@ impl Pass {
                     },
                     tacky::nodes::BinaryOperator::GreaterThanEqual => {
                         instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
-                            src: src1,
-                            dest: src2.clone(),
+                            src: src2.clone(),
+                            dest: src1,
                             suffix: src_type_suf,
                         }));
                         instructions.push(nodes::Instruction::Mov(nodes::BinOp {
@@ -234,8 +234,8 @@ impl Pass {
                     },
                     tacky::nodes::BinaryOperator::LessThan => {
                         instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
-                            src: src1,
-                            dest: src2.clone(),
+                            src: src2.clone(),
+                            dest: src1,
                             suffix: src_type_suf,
                         }));
                         instructions.push(nodes::Instruction::Mov(nodes::BinOp {
@@ -247,8 +247,8 @@ impl Pass {
                     },
                     tacky::nodes::BinaryOperator::LessThanEqual => {
                         instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
-                            src: src1,
-                            dest: src2.clone(),
+                            src: src2.clone(),
+                            dest: src1,
                             suffix: src_type_suf,
                         }));
                         instructions.push(nodes::Instruction::Mov(nodes::BinOp {
@@ -260,8 +260,8 @@ impl Pass {
                     },
                     tacky::nodes::BinaryOperator::Equal => {
                         instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
-                            src: src1,
-                            dest: src2.clone(),
+                            src: src2.clone(),
+                            dest: src1,
                             suffix: src_type_suf,
                         }));
                         instructions.push(nodes::Instruction::Mov(nodes::BinOp {
@@ -273,8 +273,8 @@ impl Pass {
                     },
                     tacky::nodes::BinaryOperator::NotEqual => {
                         instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
-                            src: src1,
-                            dest: src2.clone(),
+                            src: src2.clone(),
+                            dest: src1,
                             suffix: src_type_suf,
                         }));
                         instructions.push(nodes::Instruction::Mov(nodes::BinOp {
@@ -347,11 +347,13 @@ impl Pass {
                 }
 
                 for (i, arg) in register_args.iter().enumerate() {
-                    instructions.push(nodes::Instruction::Mov(nodes::BinOp {
+                    let mov = nodes::Instruction::Mov(nodes::BinOp {
                         src: self.emit_value(arg),
                         dest: nodes::Operand::Register(arg_registers[i]),
                         suffix: self.type_to_suffix(&self.get_type(arg))
-                    }));
+                    });
+
+                    instructions.push(mov);
                 }
 
                 // go over stack args in reverse order

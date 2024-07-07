@@ -49,7 +49,6 @@ impl Emitter {
             output.push_str("    push %rbp\n");
             output.push_str("    mov %rsp, %rbp\n");
             for instruction in &function.instructions {
-
                 match instruction {
                     code_gen::nodes::Instruction::Mov(mov) => {
                         output.push_str(&format!("    mov{} {}, {}\n", mov.suffix, self.displ_op(&mov.src, &mov.suffix), self.displ_op(&mov.dest, &mov.suffix)));

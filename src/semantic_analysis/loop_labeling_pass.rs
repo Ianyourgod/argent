@@ -2,19 +2,19 @@ use crate::parser::nodes;
 
 pub struct Pass {
     pub program: nodes::Program,
+    pub global_label_count: u32,
 }
 
 pub struct Context {
     pub label: Option<String>,
-    pub label_count: i32, // This is a hack to generate unique "labels". a label is just so tacky knows what loop a break or continue statement is referring to
 }
 
 impl Pass {
     pub fn new(program: &nodes::Program) -> Pass {
-        Pass { program: program.clone() }
+        Pass { program: program.clone(), global_label_count: 0, }
     }
 
-    pub fn run(&self) -> nodes::Program {
+    pub fn run(&mut self) -> nodes::Program {
         let mut program = nodes::Program {
             function_definitions: Vec::new(),
         };
@@ -30,7 +30,6 @@ impl Pass {
 
             let mut context = Context {
                 label: None,
-                label_count: 0,
             };
 
             for statement in body_statements {
@@ -50,7 +49,7 @@ impl Pass {
         program
     }
 
-    fn label_statement(&self, statement: &nodes::Statement, statements: &mut Vec<Box<nodes::Statement>>, context: &mut Context) {
+    fn label_statement(&mut self, statement: &nodes::Statement, statements: &mut Vec<Box<nodes::Statement>>, context: &mut Context) {
         match statement {
             nodes::Statement::WhileStatement(ref while_statement) => {
                 let body_statements = match *while_statement.body {
@@ -60,9 +59,9 @@ impl Pass {
 
 
                 let old_label = context.label.clone();
-                let new_label = context.label_count.to_string();
+                let new_label = self.global_label_count.to_string();
                 context.label = Some(new_label.clone());
-                context.label_count += 1;
+                self.global_label_count += 1;
 
                 let mut new_body_statements: Vec<Box<nodes::Statement>> = Vec::new();
 

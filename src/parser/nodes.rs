@@ -87,6 +87,29 @@ pub enum Literal {
     I64(i64),
 }
 
+impl Literal {
+    pub fn get_type(&self) -> Type {
+        match self {
+            Literal::I32(_) => Type::I32,
+            Literal::I64(_) => Type::I64,
+        }
+    }
+
+    pub fn as_i32(&self) -> i32 {
+        match self {
+            Literal::I32(val) => *val,
+            Literal::I64(val) => *val as i32,
+        }
+    }
+
+    pub fn as_i64(&self) -> i64 {
+        match self {
+            Literal::I32(val) => *val as i64,
+            Literal::I64(val) => *val,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Identifier {
     pub value: String,
