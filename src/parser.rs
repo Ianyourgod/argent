@@ -755,16 +755,16 @@ mod tests {
                         assert_eq!(c.statements.len(), 2);
                         assert_eq!(c.statements[0], Box::new(nodes::Statement::IfStatement(nodes::IfStatement {
                             condition: Box::new(nodes::Expression::BinOp(
-                                Box::new(nodes::Expression::Literal(nodes::Literal::Generic32(1), None)),
+                                Box::new(nodes::Expression::Literal(nodes::Literal::Generic32(1), Some(nodes::Type::Generic32))),
                                 nodes::BinOp::Equal,
-                                Box::new(nodes::Expression::Literal(nodes::Literal::Generic32(1), None)),
+                                Box::new(nodes::Expression::Literal(nodes::Literal::Generic32(1), Some(nodes::Type::Generic32))),
                                 None
                             )),
                             consequence: Box::new(nodes::Statement::Compound(nodes::CompoundStatement { statements: vec![] })),
                             alternative: None,
                         })));
                         assert_eq!(c.statements[1], Box::new(nodes::Statement::ReturnStatement(nodes::ReturnStatement {
-                            return_value: Box::new(nodes::Expression::Literal(nodes::Literal::Generic32(6), None))
+                            return_value: Box::new(nodes::Expression::Literal(nodes::Literal::Generic32(6), Some(nodes::Type::Generic32)))
                         })));
                     },
                     _ => panic!("expected compound statement"),
