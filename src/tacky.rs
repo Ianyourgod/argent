@@ -249,6 +249,7 @@ impl Tacky {
                     parser::nodes::Type::Generic32 => nodes::Value::Constant(nodes::Constant::U32(literal.as_u32())),
                     parser::nodes::Type::U64 |
                     parser::nodes::Type::Generic64 => nodes::Value::Constant(nodes::Constant::U64(literal.as_u64())),
+                    parser::nodes::Type::Bool => nodes::Value::Constant(nodes::Constant::Bool(literal.as_bool())),
                     #[allow(unreachable_patterns)]
                     unin => panic!("Not implemented yet: {:?}", unin)
                 }
@@ -296,24 +297,42 @@ impl Tacky {
 
                 if operator == nodes::BinaryOperator::And || operator == nodes::BinaryOperator::Or {
                     let src1 = self.emit_tacky_expression(&*exp1, instructions);
+
+                    let false_label = self.make_label();
                     let end = self.make_label();
-                    if operator == nodes::BinaryOperator::And {
-                        instructions.instructions.push(nodes::Instruction::JumpIfZero(end.clone(), src1.clone()));
+
+                    let is_and = operator == nodes::BinaryOperator::And;
+
+                    if is_and {
+                        instructions.instructions.push(nodes::Instruction::JumpIfZero(false_label.clone(), src1.clone()));
                     } else {
-                        instructions.instructions.push(nodes::Instruction::JumpIfNotZero(end.clone(), src1.clone()));
+                        instructions.instructions.push(nodes::Instruction::JumpIfNotZero(false_label.clone(), src1.clone()));
                     }
+
                     let src2 = self.emit_tacky_expression(&*exp2, instructions);
-                    if operator == nodes::BinaryOperator::And {
-                        instructions.instructions.push(nodes::Instruction::JumpIfZero(end.clone(), src1.clone()));
+
+                    if is_and {
+                        instructions.instructions.push(nodes::Instruction::JumpIfZero(false_label.clone(), src2.clone()));
                     } else {
-                        instructions.instructions.push(nodes::Instruction::JumpIfNotZero(end.clone(), src1.clone()));
+                        instructions.instructions.push(nodes::Instruction::JumpIfNotZero(false_label.clone(), src2.clone()));
                     }
-                    let dest = self.make_tacky_var(nodes::Type::I32);
+
+                    let dest = self.make_tacky_var(nodes::Type::Bool);
+
                     instructions.instructions.push(nodes::Instruction::Copy(nodes::Copy {
-                        src: nodes::Value::Constant(nodes::Constant::I32(0)),
+                        src: nodes::Value::Constant(nodes::Constant::Bool(is_and)),
                         dest: dest.clone(),
                     }));
+                    instructions.instructions.push(nodes::Instruction::Jump(end.clone()));
+
+                    instructions.instructions.push(nodes::Instruction::Label(false_label));
+                    instructions.instructions.push(nodes::Instruction::Copy(nodes::Copy {
+                        src: nodes::Value::Constant(nodes::Constant::Bool(!is_and)),
+                        dest: dest.clone(),
+                    }));
+
                     instructions.instructions.push(nodes::Instruction::Label(end));
+
                     return dest;
                 }
                 let src1 = self.emit_tacky_expression(&*exp1, instructions);

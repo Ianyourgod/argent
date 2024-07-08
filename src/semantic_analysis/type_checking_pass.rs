@@ -257,6 +257,7 @@ impl Pass {
                     nodes::Literal::I64(val) => (Box::new(nodes::Expression::Literal(nodes::Literal::I64(val), Some(nodes::Type::I64))), nodes::Type::I64),
                     nodes::Literal::U64(val) => (Box::new(nodes::Expression::Literal(nodes::Literal::U64(val), Some(nodes::Type::U64))), nodes::Type::U64),
                     nodes::Literal::Generic64(val) => (Box::new(nodes::Expression::Literal(nodes::Literal::Generic64(val), Some(nodes::Type::Generic64))), nodes::Type::Generic64),
+                    nodes::Literal::Bool(val) => (Box::new(nodes::Expression::Literal(nodes::Literal::Bool(val), Some(nodes::Type::Bool))), nodes::Type::Bool),
                     #[allow(unreachable_patterns)]
                     _ => unimplemented!()
                 }

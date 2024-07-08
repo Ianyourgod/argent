@@ -565,6 +565,18 @@ impl Parser {
             lexer::TokenType::Int => {
                 self.parse_int_literal()
             },
+            lexer::TokenType::Keyword => {
+                if self.cur_token.literal == "true" {
+                    self.next_token();
+                    Box::new(nodes::Expression::Literal(nodes::Literal::Bool(true), Some(nodes::Type::Bool)))
+                } else if self.cur_token.literal == "false" {
+                    self.next_token();
+                    Box::new(nodes::Expression::Literal(nodes::Literal::Bool(false), Some(nodes::Type::Bool)))
+                } else {
+                    self.error(format!("Expected factor, found keyword {:#?}", self.cur_token.literal), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+                    panic!();
+                }
+            }
             lexer::TokenType::Identifier => {
                 self.parse_identifier()
             },
@@ -592,6 +604,7 @@ impl Parser {
                                     Box::new(nodes::Expression::Literal(nodes::Literal::I64(-val), Some(nodes::Type::I64)))
                                 },
                                 nodes::Literal::U64(val) => panic!("Cannot negate unsigned integer.\nYour number is too big to fit into an integer type and therefor is forced into an unsigned type."),
+                                _ => panic!("Literal is not a number")
                             }
                         },
                         _ => panic!("")

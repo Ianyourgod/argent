@@ -136,6 +136,7 @@ pub enum Constant {
     I64(i64),
     U32(u32),
     U64(u64),
+    Bool(bool),
 }
 
 impl Constant {
@@ -145,6 +146,13 @@ impl Constant {
             Constant::I64(val) => *val as i32,
             Constant::U32(val) => *val as i32,
             Constant::U64(val) => *val as i32,
+            Constant::Bool(val) => {
+                if *val {
+                    1
+                } else {
+                    0
+                }
+            }
         }
     }
 
@@ -154,6 +162,13 @@ impl Constant {
             Constant::I32(val) => *val as i64,
             Constant::U32(val) => *val as i64,
             Constant::U64(val) => *val as i64,
+            Constant::Bool(val) => {
+                if *val {
+                    1
+                } else {
+                    0
+                }
+            }
         }
     }
 
@@ -163,6 +178,13 @@ impl Constant {
             Constant::I32(val) => *val as u32,
             Constant::I64(val) => *val as u32,
             Constant::U64(val) => *val as u32,
+            Constant::Bool(val) => {
+                if *val {
+                    1
+                } else {
+                    0
+                }
+            }
         }
     }
 
@@ -172,6 +194,13 @@ impl Constant {
             Constant::I32(val) => *val as u64,
             Constant::I64(val) => *val as u64,
             Constant::U32(val) => *val as u64,
+            Constant::Bool(val) => {
+                if *val {
+                    1
+                } else {
+                    0
+                }
+            }
         }
     }
 
@@ -199,6 +228,13 @@ impl Constant {
     pub fn is_u64(&self) -> bool {
         match self {
             Constant::U64(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_bool(&self) -> bool {
+        match self {
+            Constant::Bool(_) => true,
             _ => false,
         }
     }

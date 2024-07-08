@@ -1,4 +1,6 @@
-fn main() -> u32 {
-    let unsigned1: u32 = -9223372036854775809;
+fn main() -> bool {
+    let bool1: bool = false;
+
+    return bool1 || true;
 }
 

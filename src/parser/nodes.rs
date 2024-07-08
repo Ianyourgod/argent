@@ -88,6 +88,7 @@ pub enum Literal {
     I32(i32), // i32::MIN <-> -1
     I64(i64), // i64::MIN <-> i32::MIN - 1
     U64(u64), // i64::MAX + 1 <-> u64::MAX
+    Bool(bool), // true <-> false (1 <-> 0)
     // no u32 as its just in the generic64 range
 }
 
@@ -99,6 +100,7 @@ impl Literal {
             Literal::I32(_) => Type::GenericInt,
             Literal::I64(_) => Type::I64,
             Literal::U64(_) => Type::Generic64,
+            Literal::Bool(_) => Type::Bool,
         }
     }
 
@@ -130,6 +132,13 @@ impl Literal {
             Literal::U64(val) => *val,
             Literal::Generic64(val) => *val,
             _ => panic!("Literal is not a u64")
+        }
+    }
+
+    pub fn as_bool(&self) -> bool {
+        match self {
+            Literal::Bool(val) => *val,
+            _ => panic!("Literal is not a bool")
         }
     }
 }

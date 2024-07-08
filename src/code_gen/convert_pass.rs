@@ -99,6 +99,7 @@ impl Pass {
                     tacky::nodes::Constant::I64(_) => tacky::nodes::Type::I64,
                     tacky::nodes::Constant::U32(_) => tacky::nodes::Type::U32,
                     tacky::nodes::Constant::U64(_) => tacky::nodes::Type::U64,
+                    tacky::nodes::Constant::Bool(_) => tacky::nodes::Type::Bool,
                 }
             }
             _ => panic!("Unsupported value type"),
@@ -337,11 +338,15 @@ impl Pass {
                 instructions.push(nodes::Instruction::JumpCC(nodes::CondCode::E, label.clone()));
             }
             tacky::nodes::Instruction::JumpIfNotZero(label, value) => {
+                let value_type = self.get_type(value);
+                let value_type_suffix = self.type_to_suffix(&value_type);
+
                 let value = self.emit_value(value);
+
                 instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
                     src: nodes::Operand::Immediate(0),
                     dest: value.clone(),
-                    suffix: nodes::Suffix::L,
+                    suffix: value_type_suffix,
                 }));
                 instructions.push(nodes::Instruction::JumpCC(nodes::CondCode::NE, label.clone()));
             }
