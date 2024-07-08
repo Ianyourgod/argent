@@ -222,6 +222,7 @@ impl Pass {
                             dest: nodes::Operand::Register(nodes::Reg::AX),
                             suffix: src_type_suf.clone(),
                         }));
+
                         if self.is_signed(&src1_type) {
                             instructions.push(nodes::Instruction::Cdq(src_type_suf.clone()));
                             instructions.push(nodes::Instruction::IDiv(nodes::UnaryOp {
@@ -239,6 +240,7 @@ impl Pass {
                                 suffix: src_type_suf.clone(),
                             }));
                         }
+
                         instructions.push(nodes::Instruction::Mov(nodes::BinOp {
                             src: nodes::Operand::Register(nodes::Reg::AX),
                             dest,
@@ -251,11 +253,25 @@ impl Pass {
                             dest: nodes::Operand::Register(nodes::Reg::AX),
                             suffix: src_type_suf.clone(),
                         }));
-                        instructions.push(nodes::Instruction::Cdq(src_type_suf.clone()));
-                        instructions.push(nodes::Instruction::IDiv(nodes::UnaryOp {
-                            operand: src2,
-                            suffix: src_type_suf.clone(),
-                        }));
+
+                        if self.is_signed(&src1_type) {
+                            instructions.push(nodes::Instruction::Cdq(src_type_suf.clone()));
+                            instructions.push(nodes::Instruction::IDiv(nodes::UnaryOp {
+                                operand: src2,
+                                suffix: src_type_suf.clone(),
+                            }));
+                        } else {
+                            instructions.push(nodes::Instruction::Mov(nodes::BinOp {
+                                src: nodes::Operand::Immediate(0),
+                                dest: nodes::Operand::Register(nodes::Reg::DX),
+                                suffix: src_type_suf.clone(),
+                            })); // zero out rdx
+                            instructions.push(nodes::Instruction::Div(nodes::UnaryOp {
+                                operand: src2,
+                                suffix: src_type_suf.clone(),
+                            }));
+                        }
+                        
                         instructions.push(nodes::Instruction::Mov(nodes::BinOp {
                             src: nodes::Operand::Register(nodes::Reg::DX),
                             dest,
