@@ -74,6 +74,9 @@ impl Pass {
         match ty {
             tacky::nodes::Type::I32 => nodes::Type::I32,
             tacky::nodes::Type::I64 => nodes::Type::I64,
+            tacky::nodes::Type::U32 => nodes::Type::U32,
+            tacky::nodes::Type::U64 => nodes::Type::U64,
+            tacky::nodes::Type::Bool => nodes::Type::Bool,
             tacky::nodes::Type::Fn(ref args, ref ret) => {
                 let mut arg_types = Vec::new();
                 for arg in args {
@@ -94,6 +97,8 @@ impl Pass {
                 match constant {
                     tacky::nodes::Constant::I32(_) => tacky::nodes::Type::I32,
                     tacky::nodes::Constant::I64(_) => tacky::nodes::Type::I64,
+                    tacky::nodes::Constant::U32(_) => tacky::nodes::Type::U32,
+                    tacky::nodes::Constant::U64(_) => tacky::nodes::Type::U64,
                 }
             }
             _ => panic!("Unsupported value type"),
@@ -102,9 +107,33 @@ impl Pass {
 
     fn type_to_suffix(&self, type_: &tacky::nodes::Type) -> nodes::Suffix {
         match type_ {
-            tacky::nodes::Type::I32 => nodes::Suffix::L,
-            tacky::nodes::Type::I64 => nodes::Suffix::Q,
-            _ => panic!("Unsupported type"),
+            tacky::nodes::Type::I32  => nodes::Suffix::L,
+            tacky::nodes::Type::I64  => nodes::Suffix::Q,
+            tacky::nodes::Type::U32  => nodes::Suffix::L,
+            tacky::nodes::Type::U64  => nodes::Suffix::Q,
+            tacky::nodes::Type::Bool => nodes::Suffix::B,
+            _ => panic!("Unsupported type: {:?}", type_),
+        }
+    }
+
+    fn basic_comparison(&self, cond_code: nodes::CondCode, src1: nodes::Operand, src2: nodes::Operand, dest: nodes::Operand, src_type_suf: nodes::Suffix, dst_type_suf: nodes::Suffix, instructions: &mut Vec<nodes::Instruction>) {
+        instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
+            src: src2.clone(),
+            dest: src1,
+            suffix: src_type_suf,
+        }));
+        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
+            src: nodes::Operand::Immediate(0),
+            dest: dest.clone(),
+            suffix: dst_type_suf,
+        }));
+        instructions.push(nodes::Instruction::SetCC(cond_code, dest));
+    }
+
+    fn is_signed(&self, type_: &tacky::nodes::Type) -> bool {
+        match type_ {
+            tacky::nodes::Type::I32 | tacky::nodes::Type::I64 => true,
+            _ => false,
         }
     }
 
@@ -224,82 +253,30 @@ impl Pass {
                     tacky::nodes::BinaryOperator::And => panic!(),
                     tacky::nodes::BinaryOperator::Or => panic!(),
                     tacky::nodes::BinaryOperator::GreaterThan => {
-                        instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
-                            src: src2.clone(),
-                            dest: src1,
-                            suffix: src_type_suf,
-                        }));
-                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                            src: nodes::Operand::Immediate(0),
-                            dest: dest.clone(),
-                            suffix: dst_type_suf,
-                        }));
-                        instructions.push(nodes::Instruction::SetCC(nodes::CondCode::G, dest));
+                        let cond_code = if self.is_signed(&src1_type) { nodes::CondCode::G } else { nodes::CondCode::A };
+
+                        self.basic_comparison(cond_code, src1, src2, dest, src_type_suf, dst_type_suf, instructions)
                     },
                     tacky::nodes::BinaryOperator::GreaterThanEqual => {
-                        instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
-                            src: src2.clone(),
-                            dest: src1,
-                            suffix: src_type_suf,
-                        }));
-                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                            src: nodes::Operand::Immediate(0),
-                            dest: dest.clone(),
-                            suffix: dst_type_suf,
-                        }));
-                        instructions.push(nodes::Instruction::SetCC(nodes::CondCode::GE, dest));
+                        let cond_code = if self.is_signed(&src1_type) { nodes::CondCode::GE } else { nodes::CondCode::AE };
+
+                        self.basic_comparison(cond_code, src1, src2, dest, src_type_suf, dst_type_suf, instructions)
                     },
                     tacky::nodes::BinaryOperator::LessThan => {
-                        instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
-                            src: src2.clone(),
-                            dest: src1,
-                            suffix: src_type_suf,
-                        }));
-                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                            src: nodes::Operand::Immediate(0),
-                            dest: dest.clone(),
-                            suffix: dst_type_suf,
-                        }));
-                        instructions.push(nodes::Instruction::SetCC(nodes::CondCode::L, dest));
+                        let cond_code = if self.is_signed(&src1_type) { nodes::CondCode::L } else { nodes::CondCode::B };
+
+                        self.basic_comparison(cond_code, src1, src2, dest, src_type_suf, dst_type_suf, instructions)
                     },
                     tacky::nodes::BinaryOperator::LessThanEqual => {
-                        instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
-                            src: src2.clone(),
-                            dest: src1,
-                            suffix: src_type_suf,
-                        }));
-                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                            src: nodes::Operand::Immediate(0),
-                            dest: dest.clone(),
-                            suffix: dst_type_suf,
-                        }));
-                        instructions.push(nodes::Instruction::SetCC(nodes::CondCode::LE, dest));
+                        let cond_code = if self.is_signed(&src1_type) { nodes::CondCode::LE } else { nodes::CondCode::BE };
+
+                        self.basic_comparison(cond_code, src1, src2, dest, src_type_suf, dst_type_suf, instructions)
                     },
                     tacky::nodes::BinaryOperator::Equal => {
-                        instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
-                            src: src2.clone(),
-                            dest: src1,
-                            suffix: src_type_suf,
-                        }));
-                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                            src: nodes::Operand::Immediate(0),
-                            dest: dest.clone(),
-                            suffix: dst_type_suf,
-                        }));
-                        instructions.push(nodes::Instruction::SetCC(nodes::CondCode::E, dest));
+                        self.basic_comparison(nodes::CondCode::E, src1, src2, dest, src_type_suf, dst_type_suf, instructions)
                     },
                     tacky::nodes::BinaryOperator::NotEqual => {
-                        instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
-                            src: src2.clone(),
-                            dest: src1,
-                            suffix: src_type_suf,
-                        }));
-                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                            src: nodes::Operand::Immediate(0),
-                            dest: dest.clone(),
-                            suffix: dst_type_suf,
-                        }));
-                        instructions.push(nodes::Instruction::SetCC(nodes::CondCode::NE, dest));
+                        self.basic_comparison(nodes::CondCode::NE, src1, src2, dest, src_type_suf, dst_type_suf, instructions)
                     },
                 }
             }

@@ -96,7 +96,7 @@ impl Parser {
     }
 
     fn valid_type(&self) -> nodes::Type {
-        let builtin_types = vec!["int", "i32", "i64"];
+        let builtin_types = vec!["int", "i32", "i64", "uint", "u32", "u64", "bool"];
 
         if self.cur_token.kind != lexer::TokenType::Keyword {
             self.error(format!("Expected type, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
@@ -107,6 +107,10 @@ impl Parser {
                 "int" => nodes::Type::I32,
                 "i32" => nodes::Type::I32,
                 "i64" => nodes::Type::I64,
+                "uint" => nodes::Type::U32,
+                "u32" => nodes::Type::U32,
+                "u64" => nodes::Type::U64,
+                "bool" => nodes::Type::Bool,
                 _ => {
                     self.error(format!("Unknown type: {}", self.cur_token.literal), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
                     panic!();
@@ -526,12 +530,21 @@ impl Parser {
     fn parse_int_literal(&mut self) -> Box<nodes::Expression> {
         let int = self.cur_token.literal.parse::<i64>().unwrap();
         self.next_token();
-        if int > i32::MAX as i64 || int < i32::MIN as i64 {
+
+        let i32_max = i32::MAX as i64;
+        let i32_min = i32::MIN as i64;
+        let u32_max = u32::MAX as i64;
+
+        if int > u32_max {
+            Box::new(nodes::Expression::Literal(nodes::Literal::Generic64(int as u64), Some(nodes::Type::Generic64)))
+        } else if int > i32_max {
+            Box::new(nodes::Expression::Literal(nodes::Literal::Generic32(int as u32), Some(nodes::Type::U32)))
+        } else if int < i32_min {
             Box::new(nodes::Expression::Literal(nodes::Literal::I64(int), Some(nodes::Type::I64)))
         } else if int < 0 {
-            Box::new(nodes::Expression::Literal(nodes::Literal::GenericInt(int as i32), Some(nodes::Type::GenericInt)))
+            Box::new(nodes::Expression::Literal(nodes::Literal::I32(int as i32), Some(nodes::Type::GenericInt)))
         } else {
-            Box::new(nodes::Expression::Literal(nodes::Literal::GenericNumber(int as i32), Some(nodes::Type::GenericNumber)))
+            Box::new(nodes::Expression::Literal(nodes::Literal::Generic32(int as u32), Some(nodes::Type::Generic32)))
         }
     }
 
@@ -691,16 +704,16 @@ mod tests {
                         assert_eq!(c.statements.len(), 2);
                         assert_eq!(c.statements[0], Box::new(nodes::Statement::IfStatement(nodes::IfStatement {
                             condition: Box::new(nodes::Expression::BinOp(
-                                Box::new(nodes::Expression::Literal(nodes::Literal::GenericNumber(1), None)),
+                                Box::new(nodes::Expression::Literal(nodes::Literal::Generic32(1), None)),
                                 nodes::BinOp::Equal,
-                                Box::new(nodes::Expression::Literal(nodes::Literal::GenericNumber(1), None)),
+                                Box::new(nodes::Expression::Literal(nodes::Literal::Generic32(1), None)),
                                 None
                             )),
                             consequence: Box::new(nodes::Statement::Compound(nodes::CompoundStatement { statements: vec![] })),
                             alternative: None,
                         })));
                         assert_eq!(c.statements[1], Box::new(nodes::Statement::ReturnStatement(nodes::ReturnStatement {
-                            return_value: Box::new(nodes::Expression::Literal(nodes::Literal::GenericNumber(6), None))
+                            return_value: Box::new(nodes::Expression::Literal(nodes::Literal::Generic32(6), None))
                         })));
                     },
                     _ => panic!("expected compound statement"),

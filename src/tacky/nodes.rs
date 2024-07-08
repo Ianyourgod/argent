@@ -134,6 +134,8 @@ impl Value {
 pub enum Constant {
     I32(i32),
     I64(i64),
+    U32(u32),
+    U64(u64),
 }
 
 impl Constant {
@@ -141,6 +143,8 @@ impl Constant {
         match self {
             Constant::I32(val) => *val,
             Constant::I64(val) => *val as i32,
+            Constant::U32(val) => *val as i32,
+            Constant::U64(val) => *val as i32,
         }
     }
 
@@ -148,6 +152,26 @@ impl Constant {
         match self {
             Constant::I64(val) => *val,
             Constant::I32(val) => *val as i64,
+            Constant::U32(val) => *val as i64,
+            Constant::U64(val) => *val as i64,
+        }
+    }
+
+    pub fn as_u32(&self) -> u32 {
+        match self {
+            Constant::U32(val) => *val,
+            Constant::I32(val) => *val as u32,
+            Constant::I64(val) => *val as u32,
+            Constant::U64(val) => *val as u32,
+        }
+    }
+
+    pub fn as_u64(&self) -> u64 {
+        match self {
+            Constant::U64(val) => *val,
+            Constant::I32(val) => *val as u64,
+            Constant::I64(val) => *val as u64,
+            Constant::U32(val) => *val as u64,
         }
     }
 
@@ -164,12 +188,29 @@ impl Constant {
             _ => false,
         }
     }
+
+    pub fn is_u32(&self) -> bool {
+        match self {
+            Constant::U32(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_u64(&self) -> bool {
+        match self {
+            Constant::U64(_) => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     I32,
     I64,
+    U32,
+    U64,
+    Bool,
     Fn(Vec<Type>, Box<Type>),
     Identifier(String),
 }

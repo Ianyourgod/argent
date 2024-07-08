@@ -74,11 +74,16 @@ impl Pass {
             let can_convert = vec![
                 (nodes::Type::GenericInt, nodes::Type::I32),
                 (nodes::Type::GenericInt, nodes::Type::I64),
-                (nodes::Type::GenericNumber, nodes::Type::I32),
-                (nodes::Type::GenericNumber, nodes::Type::I64)
+                (nodes::Type::Generic32, nodes::Type::I32),
+                (nodes::Type::Generic32, nodes::Type::I64),
+                (nodes::Type::Generic32, nodes::Type::U32),
+                (nodes::Type::Generic32, nodes::Type::U64),
+                (nodes::Type::Generic64, nodes::Type::I64),
+                (nodes::Type::Generic64, nodes::Type::U64),
             ];
 
             if !can_convert.contains(&(typed_e.1.clone(), t.clone())) {
+                println!("{:#?}", typed_e.0);
                 panic!("Cannot convert {:?} to {:?}", typed_e.1, t);
             }
 
@@ -188,6 +193,15 @@ impl Pass {
         }
     }
 
+    fn is_comparison(&self, op: nodes::BinOp) -> bool {
+        match op {
+            nodes::BinOp::Equal | nodes::BinOp::NotEqual |
+            nodes::BinOp::LessThan | nodes::BinOp::LessThanEqual |
+            nodes::BinOp::GreaterThan | nodes::BinOp::GreaterThanEqual => true,
+            _ => false,
+        }
+    }
+
     fn typecheck_expression(&self, expression: Box<nodes::Expression>, symbol_table: &symbol_table::SymbolTable) -> (Box<nodes::Expression>, nodes::Type) {
         match *expression {
             nodes::Expression::Assignment(ident, expr, _) => {
@@ -208,7 +222,7 @@ impl Pass {
                 let typed_right = self.typecheck_expression(right, symbol_table);
 
                 if op == nodes::BinOp::And || op == nodes::BinOp::Or {
-                    return (Box::new(nodes::Expression::BinOp(typed_left.0, op, typed_right.0, Some(nodes::Type::I32))), nodes::Type::I32);
+                    return (Box::new(nodes::Expression::BinOp(typed_left.0, op, typed_right.0, Some(nodes::Type::I32))), nodes::Type::Bool);
                 }
 
                 let common_type = self.get_common_type(typed_left.1.clone(), typed_right.1.clone());
@@ -216,7 +230,13 @@ impl Pass {
                 let converted_left = self.convert_to(*typed_left.0.clone(), common_type.clone(), symbol_table);
                 let converted_right = self.convert_to(*typed_right.0.clone(), common_type.clone(), symbol_table);
 
-                (Box::new(nodes::Expression::BinOp(converted_left, op, converted_right, Some(common_type.clone()))), common_type)
+                let ret_type = if self.is_comparison(op) {
+                    nodes::Type::Bool
+                } else {
+                    common_type
+                };
+
+                (Box::new(nodes::Expression::BinOp(converted_left, op, converted_right, Some(ret_type.clone()))), ret_type)
             },
             nodes::Expression::UnaryOp(op, expr, _) => {
                 let typed_expr = self.typecheck_expression(expr, symbol_table);
@@ -232,9 +252,11 @@ impl Pass {
             },
             nodes::Expression::Literal(literal, _) => {
                 match literal {
-                    nodes::Literal::GenericNumber(val) => (Box::new(nodes::Expression::Literal(nodes::Literal::GenericNumber(val), Some(nodes::Type::GenericNumber))), nodes::Type::GenericNumber),
-                    nodes::Literal::GenericInt(val) => (Box::new(nodes::Expression::Literal(nodes::Literal::GenericInt(val), Some(nodes::Type::GenericInt))), nodes::Type::GenericInt),
+                    nodes::Literal::Generic32(val) => (Box::new(nodes::Expression::Literal(nodes::Literal::Generic32(val), Some(nodes::Type::Generic32))), nodes::Type::Generic32),
+                    nodes::Literal::I32(val) => (Box::new(nodes::Expression::Literal(nodes::Literal::I32(val), Some(nodes::Type::GenericInt))), nodes::Type::GenericInt),
                     nodes::Literal::I64(val) => (Box::new(nodes::Expression::Literal(nodes::Literal::I64(val), Some(nodes::Type::I64))), nodes::Type::I64),
+                    nodes::Literal::U64(val) => (Box::new(nodes::Expression::Literal(nodes::Literal::U64(val), Some(nodes::Type::U64))), nodes::Type::U64),
+                    nodes::Literal::Generic64(val) => (Box::new(nodes::Expression::Literal(nodes::Literal::Generic64(val), Some(nodes::Type::Generic64))), nodes::Type::Generic64),
                     #[allow(unreachable_patterns)]
                     _ => unimplemented!()
                 }
@@ -283,10 +305,14 @@ impl Pass {
 
     fn convert_type(&self, type_: &nodes::Type) -> nodes::Type {
         match type_ {
-            nodes::Type::GenericNumber => nodes::Type::GenericNumber,
+            nodes::Type::Generic32 => nodes::Type::Generic32,
+            nodes::Type::Generic64 => nodes::Type::Generic64,
             nodes::Type::GenericInt => nodes::Type::GenericInt,
             nodes::Type::I32 => nodes::Type::I32,
             nodes::Type::I64 => nodes::Type::I64,
+            nodes::Type::U32 => nodes::Type::U32,
+            nodes::Type::U64 => nodes::Type::U64,
+            nodes::Type::Bool => nodes::Type::Bool,
             //nodes::Type::Identifier(ident) => typed_ast::Type::Identifier(ident.value.clone()),
             nodes::Type::Fn(params, return_type) => nodes::Type::Fn(
                 params.iter().map(|arg| self.convert_type(arg)).collect(),

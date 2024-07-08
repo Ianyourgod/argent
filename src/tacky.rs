@@ -52,9 +52,11 @@ impl Tacky {
     fn convert_type(&self, ty: &parser::nodes::Type) -> nodes::Type {
         match ty {
             parser::nodes::Type::I32 |
-            parser::nodes::Type::GenericNumber |
             parser::nodes::Type::GenericInt => nodes::Type::I32,
             parser::nodes::Type::I64 => nodes::Type::I64,
+            parser::nodes::Type::U32 | parser::nodes::Type::Generic32 => nodes::Type::U32,
+            parser::nodes::Type::U64 | parser::nodes::Type::Generic64 => nodes::Type::U64,
+            parser::nodes::Type::Bool => nodes::Type::Bool,
             parser::nodes::Type::Fn(ref args, ref ret) => {
                 let mut arg_types = Vec::new();
                 for arg in args {
@@ -62,10 +64,10 @@ impl Tacky {
                 }
                 nodes::Type::Fn(arg_types, Box::new(self.convert_type(ret)))
             }
-            #[allow(unreachable_patterns)]
+            /*#[allow(unreachable_patterns)]
             _ => {
                 panic!("Not implemented yet: {:?}", ty);
-            }
+            }*/
             // parser::nodes::Type::Identifier(ident) => nodes::Type::Identifier(ident.value.clone()),
         }
     }
@@ -241,9 +243,12 @@ impl Tacky {
                 }
                 match type_.as_ref().unwrap() {
                     parser::nodes::Type::I32 |
-                    parser::nodes::Type::GenericInt |
-                    parser::nodes::Type::GenericNumber => nodes::Value::Constant(nodes::Constant::I32(literal.as_i32())),
+                    parser::nodes::Type::GenericInt => nodes::Value::Constant(nodes::Constant::I32(literal.as_i32())),
                     parser::nodes::Type::I64 => nodes::Value::Constant(nodes::Constant::I64(literal.as_i64())),
+                    parser::nodes::Type::U32 |
+                    parser::nodes::Type::Generic32 => nodes::Value::Constant(nodes::Constant::U32(literal.as_u32())),
+                    parser::nodes::Type::U64 |
+                    parser::nodes::Type::Generic64 => nodes::Value::Constant(nodes::Constant::U64(literal.as_u64())),
                     #[allow(unreachable_patterns)]
                     unin => panic!("Not implemented yet: {:?}", unin)
                 }
@@ -400,7 +405,7 @@ mod tests {
                     body: Box::new(parser::nodes::Statement::Compound(parser::nodes::CompoundStatement {
                         statements: vec![
                             Box::new(parser::nodes::Statement::ReturnStatement(parser::nodes::ReturnStatement {
-                                return_value: Box::new(parser::nodes::Expression::Literal(parser::nodes::Literal::GenericNumber(0), Some(parser::nodes::Type::I32))),
+                                return_value: Box::new(parser::nodes::Expression::Literal(parser::nodes::Literal::Generic32(0), Some(parser::nodes::Type::I32))),
                             })),
                         ],
                     })),
@@ -429,7 +434,7 @@ mod tests {
                         statements: vec![
                             Box::new(parser::nodes::Statement::VariableDeclaration(parser::nodes::VariableDeclaration {
                                 ident: parser::nodes::Identifier { value: "x".to_string() },
-                                expr: Some(Box::new(parser::nodes::Expression::Literal(parser::nodes::Literal::GenericNumber(42), Some(parser::nodes::Type::I32)))),
+                                expr: Some(Box::new(parser::nodes::Expression::Literal(parser::nodes::Literal::Generic32(42), Some(parser::nodes::Type::I32)))),
                                 kind: parser::nodes::Type::I32,
                             })),
                             Box::new(parser::nodes::Statement::ReturnStatement(parser::nodes::ReturnStatement {
@@ -465,7 +470,7 @@ mod tests {
                     body: Box::new(parser::nodes::Statement::Compound(parser::nodes::CompoundStatement {
                         statements: vec![
                             Box::new(parser::nodes::Statement::ReturnStatement(parser::nodes::ReturnStatement {
-                                return_value: Box::new(parser::nodes::Expression::UnaryOp(parser::nodes::UnaryOp::Negation, Box::new(parser::nodes::Expression::Literal(parser::nodes::Literal::GenericNumber(42), Some(parser::nodes::Type::I32))), Some(parser::nodes::Type::I32))),
+                                return_value: Box::new(parser::nodes::Expression::UnaryOp(parser::nodes::UnaryOp::Negation, Box::new(parser::nodes::Expression::Literal(parser::nodes::Literal::Generic32(42), Some(parser::nodes::Type::I32))), Some(parser::nodes::Type::I32))),
                             })),
                         ],
                     })),

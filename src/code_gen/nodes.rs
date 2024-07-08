@@ -38,6 +38,9 @@ pub struct FunctionDefinition {
 pub enum Type {
     I32,
     I64,
+    U32,
+    U64,
+    Bool,
     Fn(Vec<Type>, Box<Type>),
     Identifier(String),
 }
@@ -88,6 +91,10 @@ pub enum CondCode {
     GE,
     L,
     LE,
+    A,
+    AE,
+    B,
+    BE,
 }
 
 #[derive(Debug, Clone, PartialEq)]

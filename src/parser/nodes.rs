@@ -83,33 +83,52 @@ pub enum Expression {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Literal {
-    GenericInt(i32),
-    GenericNumber(i32),
+    Generic32(u32),
+    Generic64(u64),
+    I32(i32),
     I64(i64),
+    U64(u64),
 }
 
 impl Literal {
     pub fn get_type(&self) -> Type {
         match self {
-            Literal::GenericInt(_) => Type::GenericInt,
-            Literal::GenericNumber(_) => Type::GenericNumber,
+            Literal::Generic32(_) => Type::Generic32,
+            Literal::Generic64(_) => Type::Generic64,
+            Literal::I32(_) => Type::GenericInt,
             Literal::I64(_) => Type::I64,
+            Literal::U64(_) => Type::Generic64,
         }
     }
 
     pub fn as_i32(&self) -> i32 {
         match self {
-            Literal::GenericInt(val) => *val,
-            Literal::GenericNumber(val) => *val,
-            Literal::I64(val) => *val as i32,
+            Literal::I32(val) => *val,
+            Literal::Generic32(val) => *val as i32,
+            _ => panic!("Literal is not an i32")
         }
     }
 
     pub fn as_i64(&self) -> i64 {
         match self {
-            Literal::GenericInt(val) => *val as i64,
-            Literal::GenericNumber(val) => *val as i64,
             Literal::I64(val) => *val,
+            Literal::Generic64(val) => *val as i64,
+            _ => panic!("Literal is not an i64")
+        }
+    }
+
+    pub fn as_u32(&self) -> u32 {
+        match self {
+            Literal::Generic32(val) => *val,
+            _ => panic!("Literal is not a u32")
+        }
+    }
+
+    pub fn as_u64(&self) -> u64 {
+        match self {
+            Literal::U64(val) => *val,
+            Literal::Generic64(val) => *val,
+            _ => panic!("Literal is not a u64")
         }
     }
 }
@@ -146,10 +165,14 @@ pub enum UnaryOp {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
-    GenericNumber,
+    Generic32,
     GenericInt,
+    Generic64,
     I32,
     I64,
+    U32,
+    U64,
+    Bool,
     Fn(Vec<Type>, Box<Type>),
     //Identifier(Identifier)
 }

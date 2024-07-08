@@ -38,6 +38,10 @@ impl Emitter {
             code_gen::nodes::CondCode::GE => "ge",
             code_gen::nodes::CondCode::L => "l",
             code_gen::nodes::CondCode::LE => "le",
+            code_gen::nodes::CondCode::A => "a",
+            code_gen::nodes::CondCode::AE => "ae",
+            code_gen::nodes::CondCode::B => "b",
+            code_gen::nodes::CondCode::BE => "be",
         }.to_string()
     }
 
