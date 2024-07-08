@@ -528,23 +528,35 @@ impl Parser {
     }
 
     fn parse_int_literal(&mut self) -> Box<nodes::Expression> {
-        let int = self.cur_token.literal.parse::<i64>().unwrap();
+        let u_int = self.cur_token.literal.parse::<i128>();
+
+        let int = match u_int {
+            Result::Ok(val) => {
+                val
+            },
+            _ => panic!("Invalid integer literal")
+        };
+
         self.next_token();
 
-        let i32_max = i32::MAX as i64;
-        let i32_min = i32::MIN as i64;
-        let u32_max = u32::MAX as i64;
+        let i32_max = i32::MAX as i128;
+        let i32_min = i32::MIN as i128;
+        let i64_max = i64::MAX as i128;
+        let i64_min = i64::MIN as i128;
+        let u64_max = u64::MAX as i128;
 
-        if int > u32_max {
-            Box::new(nodes::Expression::Literal(nodes::Literal::Generic64(int as u64), Some(nodes::Type::Generic64)))
+        if int > i64_max {
+            Box::new(nodes::Expression::Literal(nodes::Literal::U64(int as u64), Some(nodes::Type::U64)))
         } else if int > i32_max {
-            Box::new(nodes::Expression::Literal(nodes::Literal::Generic32(int as u32), Some(nodes::Type::U32)))
-        } else if int < i32_min {
-            Box::new(nodes::Expression::Literal(nodes::Literal::I64(int), Some(nodes::Type::I64)))
-        } else if int < 0 {
-            Box::new(nodes::Expression::Literal(nodes::Literal::I32(int as i32), Some(nodes::Type::GenericInt)))
-        } else {
+            Box::new(nodes::Expression::Literal(nodes::Literal::Generic64(int as u64), Some(nodes::Type::Generic64)))
+        } else if int >= 0 {
             Box::new(nodes::Expression::Literal(nodes::Literal::Generic32(int as u32), Some(nodes::Type::Generic32)))
+        } else if int >= i32_min {
+            Box::new(nodes::Expression::Literal(nodes::Literal::I32(int as i32), Some(nodes::Type::I32)))
+        } else if int >= i64_min {
+            Box::new(nodes::Expression::Literal(nodes::Literal::I64(int as i64), Some(nodes::Type::I64)))
+        } else {
+            panic!("Integer literal out of range")
         }
     }
 
@@ -560,6 +572,32 @@ impl Parser {
             lexer::TokenType::Subtract                                           => {
                 let op = self.parse_unop();
                 self.next_token();
+
+                if self.cur_token.kind == lexer::TokenType::Int {
+                    let int_lit = *self.parse_int_literal();
+
+                    match int_lit {
+                        nodes::Expression::Literal(lit, _) => {
+                            return match lit {
+                                nodes::Literal::Generic32(val) => {
+                                    Box::new(nodes::Expression::Literal(nodes::Literal::I32(-(val as i32)), Some(nodes::Type::GenericInt)))
+                                },
+                                nodes::Literal::I32(val) => {
+                                    Box::new(nodes::Expression::Literal(nodes::Literal::I32(-val), Some(nodes::Type::GenericInt)))
+                                },
+                                nodes::Literal::Generic64(val) => {
+                                    Box::new(nodes::Expression::Literal(nodes::Literal::I64(-(val as i64)), Some(nodes::Type::I64)))
+                                },
+                                nodes::Literal::I64(val) => {
+                                    Box::new(nodes::Expression::Literal(nodes::Literal::I64(-val), Some(nodes::Type::I64)))
+                                },
+                                nodes::Literal::U64(val) => panic!("Cannot negate unsigned integer.\nYour number is too big to fit into an integer type and therefor is forced into an unsigned type."),
+                            }
+                        },
+                        _ => panic!("")
+                    }
+                }
+
                 let expr = self.parse_factor();
                 Box::new(nodes::Expression::UnaryOp(op, expr, None))
             },

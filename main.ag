@@ -1,6 +1,4 @@
 fn main() -> u32 {
-    let unsigned1: u32 = 8;
-    let unsigned2: u32 = 3;
-
-    return unsigned1 / unsigned2 % unsigned2;
+    let unsigned1: u32 = -9223372036854775809;
 }
+

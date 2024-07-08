@@ -83,11 +83,12 @@ pub enum Expression {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Literal {
-    Generic32(u32),
-    Generic64(u64),
-    I32(i32),
-    I64(i64),
-    U64(u64),
+    Generic32(u32), // 0 <-> i32::MAX
+    Generic64(u64), // i32::MAX + 1 <-> I64::MAX
+    I32(i32), // i32::MIN <-> -1
+    I64(i64), // i64::MIN <-> i32::MIN - 1
+    U64(u64), // i64::MAX + 1 <-> u64::MAX
+    // no u32 as its just in the generic64 range
 }
 
 impl Literal {

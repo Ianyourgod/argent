@@ -7,6 +7,7 @@ wow todos for the argent language
 - [x] Rewrite to use tacky and a lot of compiler passes
 - [ ] Pattern matching
 - [ ] Do while?
+- [ ] Have an actual compile time error thing instead of just panicking
 - [x] Type checking
 - [ ] Structs
   - [ ] Enums
@@ -26,8 +27,8 @@ wow todos for the argent language
     - [ ] isize
     - [ ] u8
     - [ ] u16
-    - [ ] uint (can also be u32)
-    - [ ] u64
+    - [x] uint (can also be u32)
+    - [x] u64
     - [ ] usize
   - [ ] float
   - [ ] double
