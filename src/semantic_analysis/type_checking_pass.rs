@@ -65,37 +65,33 @@ impl Pass {
         (program, symbol_table)
     }
 
+    fn can_convert(&self, from: &nodes::Type, to: &nodes::Type) -> bool {
+        let can_convert = vec![
+            (&nodes::Type::GenericInt, &nodes::Type::I32),
+            (&nodes::Type::GenericInt, &nodes::Type::I64),
+            (&nodes::Type::Generic32, &nodes::Type::I32),
+            (&nodes::Type::Generic32, &nodes::Type::I64),
+            (&nodes::Type::Generic32, &nodes::Type::U32),
+            (&nodes::Type::Generic32, &nodes::Type::U64),
+            (&nodes::Type::Generic64, &nodes::Type::I64),
+            (&nodes::Type::Generic64, &nodes::Type::U64),
+        ];
+
+        can_convert.contains(&(from, to))
+    }
+
     fn convert_to(&self, e: nodes::Expression, t: nodes::Type, symbol_table: &symbol_table::SymbolTable) -> Box<nodes::Expression> {
         let typed_e = self.typecheck_expression(Box::new(e), symbol_table);
         
         if typed_e.1 == t {
             typed_e.0
         } else {
-            let can_convert = vec![
-                (nodes::Type::GenericInt, nodes::Type::I32),
-                (nodes::Type::GenericInt, nodes::Type::I64),
-                (nodes::Type::Generic32, nodes::Type::I32),
-                (nodes::Type::Generic32, nodes::Type::I64),
-                (nodes::Type::Generic32, nodes::Type::U32),
-                (nodes::Type::Generic32, nodes::Type::U64),
-                (nodes::Type::Generic64, nodes::Type::I64),
-                (nodes::Type::Generic64, nodes::Type::U64),
-            ];
-
-            if !can_convert.contains(&(typed_e.1.clone(), t.clone())) {
+            if !self.can_convert(&typed_e.1, &t){
                 println!("{:#?}", typed_e.0);
                 panic!("Cannot convert {:?} to {:?}", typed_e.1, t);
             }
 
             Box::new(nodes::Expression::Cast(typed_e.0, Some(t)))
-        }
-    }
-
-    fn get_common_type(&self, left: nodes::Type, right: nodes::Type) -> nodes::Type {
-        if left == right {
-            left
-        } else {
-            nodes::Type::I64
         }
     }
 
@@ -225,7 +221,20 @@ impl Pass {
                     return (Box::new(nodes::Expression::BinOp(typed_left.0, op, typed_right.0, Some(nodes::Type::I32))), nodes::Type::Bool);
                 }
 
-                let common_type = self.get_common_type(typed_left.1.clone(), typed_right.1.clone());
+                let can_convert_t = (self.can_convert(&typed_left.1, &typed_right.1),
+                    self.can_convert(&typed_right.1, &typed_left.1));
+
+                let can_convert = can_convert_t.0 || can_convert_t.1;
+
+                if !can_convert {
+                    panic!("Type mismatch: {:?} and {:?}", typed_left.1, typed_right.1);
+                }
+
+                let common_type = if can_convert_t.0 {
+                    typed_right.1.clone()
+                } else {
+                    typed_left.1.clone()
+                };
 
                 let converted_left = self.convert_to(*typed_left.0.clone(), common_type.clone(), symbol_table);
                 let converted_right = self.convert_to(*typed_right.0.clone(), common_type.clone(), symbol_table);
