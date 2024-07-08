@@ -88,6 +88,14 @@ impl Pass {
                     suffix: mul.suffix.clone(),
                 }));
             },
+            nodes::Instruction::IDiv(ref div) => {
+                let operand = self.emit_operand(&div.operand, instructions, context);
+
+                instructions.push(nodes::Instruction::IDiv(nodes::UnaryOp {
+                    operand,
+                    suffix: div.suffix.clone(),
+                }));
+            },
             nodes::Instruction::Div(ref div) => {
                 let operand = self.emit_operand(&div.operand, instructions, context);
 

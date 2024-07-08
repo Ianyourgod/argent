@@ -72,6 +72,7 @@ pub enum Instruction {
     Add(BinOp),
     Sub(BinOp),
     Mul(BinOp),
+    IDiv(UnaryOp),
     Div(UnaryOp),
     Neg(UnaryOp),
     Cdq(Suffix),

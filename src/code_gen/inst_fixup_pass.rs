@@ -178,6 +178,22 @@ impl Pass {
                     suffix: mul.suffix.clone(),
                 }));
             }
+            nodes::Instruction::IDiv(ref div) => {
+                if let nodes::Operand::Immediate(val) = &div.operand {
+                    instructions.push(nodes::Instruction::Mov(nodes::BinOp {
+                        dest: nodes::Operand::Register(nodes::Reg::R10),
+                        src: nodes::Operand::Immediate(*val),
+                        suffix: div.suffix.clone(),
+                    }));
+                    instructions.push(nodes::Instruction::IDiv(nodes::UnaryOp {
+                        operand: nodes::Operand::Register(nodes::Reg::R10),
+                        suffix: div.suffix.clone(),
+                    }));
+                    return;
+                }
+
+                instructions.push(statement.clone());
+            },
             nodes::Instruction::Div(ref div) => {
                 if let nodes::Operand::Immediate(val) = &div.operand {
                     instructions.push(nodes::Instruction::Mov(nodes::BinOp {
@@ -185,7 +201,7 @@ impl Pass {
                         src: nodes::Operand::Immediate(*val),
                         suffix: div.suffix.clone(),
                     }));
-                    instructions.push(nodes::Instruction::Div(nodes::UnaryOp {
+                    instructions.push(nodes::Instruction::IDiv(nodes::UnaryOp {
                         operand: nodes::Operand::Register(nodes::Reg::R10),
                         suffix: div.suffix.clone(),
                     }));

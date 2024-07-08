@@ -1,6 +1,6 @@
-fn main() -> bool {
-    let unsigned1: u32 = 2147484648;
-    let unsigned2: u32 = 2147484647;
+fn main() -> u32 {
+    let unsigned1: u32 = 8;
+    let unsigned2: u32 = 4;
 
-    return unsigned1 > unsigned2;
+    return unsigned1 / unsigned2;
 }

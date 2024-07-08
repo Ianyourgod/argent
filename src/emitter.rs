@@ -76,15 +76,18 @@ impl Emitter {
                     code_gen::nodes::Instruction::Mul(mul) => {
                         output.push_str(&format!("    imul{} {}, {}\n", self.get_suffix(&mul.suffix), self.displ_op(&mul.src, &mul.suffix), self.displ_op(&mul.dest, &mul.suffix)));
                     }
-                    code_gen::nodes::Instruction::Div(div) => {
+                    code_gen::nodes::Instruction::IDiv(div) => {
                         output.push_str(&format!("    idiv{} {}\n", self.get_suffix(&div.suffix), self.displ_op(&div.operand, &div.suffix)));
+                    }
+                    code_gen::nodes::Instruction::Div(div) => {
+                        output.push_str(&format!("    div{} {}\n", self.get_suffix(&div.suffix), self.displ_op(&div.operand, &div.suffix)));
                     }
                     code_gen::nodes::Instruction::Neg(neg) => {
                         output.push_str(&format!("    neg{} {}\n", self.get_suffix(&neg.suffix), self.displ_op(&neg.operand, &neg.suffix)));
                     }
                     code_gen::nodes::Instruction::Cdq(suffix) => {
                         output.push_str(if suffix==&code_gen::nodes::Suffix::L {
-                            "    cqd\n"
+                            "    cdq\n"
                         } else {
                             "    cqo\n"
                         });
