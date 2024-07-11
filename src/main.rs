@@ -21,10 +21,12 @@ fn help(err_code: i32) {
     std::process::exit(err_code);
 }
 
-fn compile_program(input: String, input_name: String, outfile_name: &String, include_output: bool) {
-    if include_output {
-        println!("{} {}", "Compiling".bright_green(), input_name);
-    }
+fn compile_program(input: String, input_name: String, outfile_name: &String, tags: Vec<String>) {
+    let include_output = tags.contains(&String::from("-v")) || tags.contains(&String::from("--verbose"));
+    let keep_asm = tags.contains(&String::from("-a")) || tags.contains(&String::from("--asm"));
+
+    println!("{} {}", "Compiling".bright_green(), input_name);
+
 
     let lexer = lexer::Lexer::new(input.clone());
     let mut parser = parser::Parser::new(lexer);
@@ -34,21 +36,46 @@ fn compile_program(input: String, input_name: String, outfile_name: &String, inc
 
     let program = parser.parse_program();
 
+    if include_output {
+        println!("{} {}", "Parsed".bright_green(), input_name);
+    }
+
     let mut resolver = semantic_analysis::Analysis::new(program.clone());
     let (program, symbol_table) = resolver.run();
+
+    if include_output {
+        println!("{} {}", "Resolved".bright_green(), input_name);
+    }
 
     let mut tacky = tacky::Tacky::new(program);
     let program = tacky.generate();
 
+    if include_output {
+        println!("{} {}", "Tacky".bright_green(), input_name);
+    }
 
     let mut compiler = code_gen::CodeGen::new(program, tacky.symbol_table, Some(input));
     let assembly_asm = compiler.generate_code();
+
+    if include_output {
+        println!("{} {}", "Generated".bright_green(), input_name);
+    }
     
     let emitter = emitter::Emitter::new(assembly_asm);
-    let code = emitter.emit();    
+    let code = emitter.emit();
+
+    if include_output {
+        println!("{} {}", "Emitted".bright_green(), input_name);
+    }
 
     // write to file
-    std::fs::write("output/temp.s", code).unwrap();
+    let dir = std::fs::create_dir("output");
+    let asm_write_res = std::fs::write("output/temp.s", code);
+
+    if asm_write_res.is_err() {
+        eprintln!("Failed to write to file: {}", asm_write_res.err().unwrap());
+        std::process::exit(1);
+    }
 
     // assemble
     let output = std::process::Command::new("gcc")
@@ -58,19 +85,27 @@ fn compile_program(input: String, input_name: String, outfile_name: &String, inc
         .output()
         .expect("failed to assemble");
 
-    if include_output {
-        println!("{} {}", "Finished".bright_green(), input_name);
+    if output.status.code().unwrap() != 0 {
+        eprintln!("Failed to assemble: {}", output.status.code().unwrap());
+        std::process::exit(1);
+    }
 
-        let stdout = std::str::from_utf8(&output.stdout).unwrap();
-        let stderr = std::str::from_utf8(&output.stderr).unwrap();
+    if keep_asm {
+        // remove temp file
+        let remove_res = std::fs::remove_file("output/temp.s");
+    }
 
-        if stdout.len() > 0 {
-            println!("{}", std::str::from_utf8(&output.stdout).unwrap());
-        }
-        if stderr.len() > 0 {
-            println!("{}", std::str::from_utf8(&output.stderr).unwrap());
-            std::process::exit(output.status.code().unwrap());
-        }
+    println!("{} {}", "Finished".bright_green(), input_name);
+
+    let stdout = std::str::from_utf8(&output.stdout).unwrap();
+    let stderr = std::str::from_utf8(&output.stderr).unwrap();
+
+    if stdout.len() > 0 {
+        println!("{}", std::str::from_utf8(&output.stdout).unwrap());
+    }
+    if stderr.len() > 0 {
+        println!("{}", std::str::from_utf8(&output.stderr).unwrap());
+        std::process::exit(output.status.code().unwrap());
     }
 }
 
@@ -116,15 +151,30 @@ fn error(filename: String, input: String, error_message: String, line: usize, po
 }
 
 fn main() {
-    if std::env::args().len() > 1 {
-        match std::env::args().nth(1).unwrap().as_str() {
+    // collect all the "tags" (-a, --abc)
+    let args: Vec<_> = std::env::args().collect();
+
+    let mut tags: Vec<String> = Vec::new();
+
+    println!("{} {}", "Argent".bright_green(), "v0.2.2");
+    
+    let mut iter = args.iter().skip(1);
+    let mut i = 0;
+    while i < iter.len() {
+        let op_arg = iter.next();
+        if op_arg.is_none() {
+            break;
+        }
+        let arg = op_arg.unwrap();
+        match arg.as_str() {
             "help" => {
                 help(0);
                 panic!();
             },
             "run" => {
-                let op_filename = std::env::args().nth(2);
+                let op_filename = args.get(i + 2);
                 if op_filename.is_none() {
+                    println!("No file specified");
                     help(2);
                     panic!();
                 }
@@ -136,13 +186,14 @@ fn main() {
                 let op_input = std::fs::read_to_string(filename);
 
                 if op_input.is_err() {
+                    println!("Failed to read file: {}", filename);
                     help(2);
                     panic!();
                 }
 
                 let input = op_input.unwrap();
 
-                compile_program(input, copied_filename, &outfile_name, true);
+                compile_program(input, copied_filename, &outfile_name, tags.clone());
 
                 println!("{} {}", "Running".bright_green(), outfile_name);
 
@@ -160,6 +211,7 @@ fn main() {
             "build" => {
                 let op_filename = std::env::args().nth(2);
                 if op_filename.is_none() {
+                    println!("No file specified");
                     help(2);
                     panic!();
                 }
@@ -168,24 +220,57 @@ fn main() {
                 let copied_filename = filename.clone();
 
                 let outfile_name = "output/".to_string() + &filename.split('.').collect::<Vec<&str>>()[0].to_string();
-                let op_input = std::fs::read_to_string(filename);
+                let op_input = std::fs::read_to_string(filename.clone());
 
                 if op_input.is_err() {
+                    println!("Failed to read file: {}", filename);
                     help(2);
                     panic!();
                 }
 
                 let input = op_input.unwrap();
 
-                compile_program(input, copied_filename, &outfile_name, true);
+                compile_program(input, copied_filename, &outfile_name, tags.clone());
             },
-            _ => {
-                help(2);
-                panic!();
+            "new" => {
+                let op_filename = std::env::args().nth(2);
+                let filename = if op_filename.is_none() {
+                    "main.ag".to_string()
+                } else {
+                    op_filename.unwrap()
+                };
+
+                let new_file_contents = 
+"fn main(argc: i32) -> i32 {
+    return 0;
+}";
+                
+                // create new file
+                let new_file = format!("{}\n", new_file_contents);
+                std::fs::write(filename.clone(), new_file).unwrap();
+
+                println!("{} {}", "Created".bright_green(), filename);
             }
+            _ => {
+                if arg.starts_with("-") {
+                    if arg.starts_with("--") {
+                        tags.push(arg.clone());
+                    } else {
+                        let mut chars = arg.chars();
+                        chars.next();
+                        for c in chars {
+                            tags.push(format!("-{}", c));
+                        }
+                    }
+                    tags.push(arg.clone());
+
+                } else {
+                    println!("Unknown command: {}", arg);
+                    help(2);
+                    panic!();
+                }
+            },
         }
-    } else {
-        help(2);
-        panic!();
+        i += 1;
     }
 }
