@@ -21,7 +21,7 @@ fn help(err_code: i32) {
     std::process::exit(err_code);
 }
 
-fn compile_program(input: String, input_name: String, outfile_name: &String, tags: Vec<String>) {
+fn compile_program(input: String, input_name: &String, outfile_name: &String, tags: Vec<String>) {
     let include_output = tags.contains(&String::from("-v")) || tags.contains(&String::from("--verbose"));
     let keep_asm = tags.contains(&String::from("-a")) || tags.contains(&String::from("--asm"));
 
@@ -40,7 +40,7 @@ fn compile_program(input: String, input_name: String, outfile_name: &String, tag
         println!("{} {}", "Parsed".bright_green(), input_name);
     }
 
-    let mut resolver = semantic_analysis::Analysis::new(program.clone());
+    let mut resolver = semantic_analysis::Analysis::new(program);
     let (program, symbol_table) = resolver.run();
 
     if include_output {
@@ -55,13 +55,13 @@ fn compile_program(input: String, input_name: String, outfile_name: &String, tag
     }
 
     let mut compiler = code_gen::CodeGen::new(program, tacky.symbol_table, Some(input));
-    let assembly_asm = compiler.generate_code();
+    let data_asm = compiler.generate_code();
 
     if include_output {
         println!("{} {}", "Generated".bright_green(), input_name);
     }
     
-    let emitter = emitter::Emitter::new(assembly_asm);
+    let emitter = emitter::Emitter::new(data_asm);
     let code = emitter.emit();
 
     if include_output {
@@ -70,12 +70,7 @@ fn compile_program(input: String, input_name: String, outfile_name: &String, tag
 
     // write to file
     let dir = std::fs::create_dir("output");
-    let asm_write_res = std::fs::write("output/temp.s", code);
-
-    if asm_write_res.is_err() {
-        eprintln!("Failed to write to file: {}", asm_write_res.err().unwrap());
-        std::process::exit(1);
-    }
+    let asm_write_res = std::fs::write("output/temp.s", code).expect("Failed to write to file");
 
     // assemble
     let output = std::process::Command::new("gcc")
@@ -152,7 +147,7 @@ fn error(filename: String, input: String, error_message: String, line: usize, po
 
 fn main() {
     // collect all the "tags" (-a, --abc)
-    let args: Vec<_> = std::env::args().collect();
+    let args: Vec<String> = std::env::args().collect();
 
     let mut tags: Vec<String> = Vec::new();
 
@@ -195,7 +190,6 @@ fn main() {
                 }
 
                 let filename = op_filename.unwrap();
-                let copied_filename = filename.clone();
 
                 let outfile_name = "output/".to_string() + &filename.split('.').collect::<Vec<&str>>()[0].to_string();
                 let op_input = std::fs::read_to_string(filename);
@@ -208,7 +202,7 @@ fn main() {
 
                 let input = op_input.unwrap();
 
-                compile_program(input, copied_filename, &outfile_name, tags.clone());
+                compile_program(input, filename, &outfile_name, tags.clone());
 
                 println!("{} {}", "Running".bright_green(), outfile_name);
 
@@ -232,10 +226,9 @@ fn main() {
                 }
 
                 let filename = op_filename.unwrap();
-                let copied_filename = filename.clone();
 
                 let outfile_name = "output/".to_string() + &filename.split('.').collect::<Vec<&str>>()[0].to_string();
-                let op_input = std::fs::read_to_string(filename.clone());
+                let op_input = std::fs::read_to_string(&filename);
 
                 if op_input.is_err() {
                     println!("Failed to read file: {}", filename);
@@ -245,7 +238,7 @@ fn main() {
 
                 let input = op_input.unwrap();
 
-                compile_program(input, copied_filename, &outfile_name, tags.clone());
+                compile_program(input, &filename, &outfile_name, tags.clone());
             },
             "new" => {
                 let op_filename = std::env::args().nth(2);
@@ -262,7 +255,7 @@ fn main() {
                 
                 // create new file
                 let new_file = format!("{}\n", new_file_contents);
-                std::fs::write(filename.clone(), new_file).unwrap();
+                std::fs::write(&filename, new_file).unwrap();
 
                 println!("{} {}", "Created".bright_green(), filename);
                 println!("Run '{}{}' to compile and run the file", "argent run ".bright_black(), filename.green());
