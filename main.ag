@@ -1,10 +1,3 @@
-fn main() -> i32 {
-    let i322: i32 = 1;
-    let i644: i64 = 2;
-    let u322: u32 = 3;
-    let u644: u64 = 4;
-    let booll: bool = false;
-
-    return i322 * 4 / 2;
+fn main(argc: i32) -> i32 {
+    return 0;
 }
-

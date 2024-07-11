@@ -156,6 +156,21 @@ fn main() {
 
     let mut tags: Vec<String> = Vec::new();
 
+    // get tags
+    for arg in args.iter() {
+        if arg.starts_with("-") {
+            if arg.starts_with("--") {
+                tags.push(arg.clone());
+            } else {
+                let mut chars = arg.chars();
+                chars.next();
+                for c in chars {
+                    tags.push(format!("-{}", c));
+                }
+            }
+        }
+    }
+
     println!("{} {}", "Argent".bright_green(), "v0.2.2");
     
     let mut iter = args.iter().skip(1);
@@ -250,25 +265,12 @@ fn main() {
                 std::fs::write(filename.clone(), new_file).unwrap();
 
                 println!("{} {}", "Created".bright_green(), filename);
+                println!("Run '{}{}' to compile and run the file", "argent run ".bright_black(), filename.green());
             }
             _ => {
-                if arg.starts_with("-") {
-                    if arg.starts_with("--") {
-                        tags.push(arg.clone());
-                    } else {
-                        let mut chars = arg.chars();
-                        chars.next();
-                        for c in chars {
-                            tags.push(format!("-{}", c));
-                        }
-                    }
-                    tags.push(arg.clone());
-
-                } else {
-                    println!("Unknown command: {}", arg);
-                    help(2);
-                    panic!();
-                }
+                println!("Unknown command: {}", arg);
+                help(2);
+                panic!();
             },
         }
         i += 1;
