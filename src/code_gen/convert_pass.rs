@@ -110,7 +110,7 @@ impl Pass {
                 let value = self.emit_value(return_value);
                 instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
                     operand: value,
-                    dest: nodes::Operand::Register(nodes::Reg::R0),
+                    dest: nodes::Operand::Register(nodes::Reg::R1),
                 }));
             }
             tacky::nodes::Instruction::Unary(unary) => {
@@ -320,7 +320,7 @@ impl Pass {
                 let dst = self.emit_value(&fun_call.dest);
 
                 instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
-                    operand: nodes::Operand::Register(nodes::Reg::R0),
+                    operand: nodes::Operand::Register(nodes::Reg::R1),
                     dest: dst,
                 }));
             },

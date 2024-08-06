@@ -80,7 +80,7 @@ impl Emitter {
                         output.push_str(&format!("lsh {} {}\n", lsh.operand.displ(), lsh.dest.displ()));
                     }
                     code_gen::nodes::Instruction::Ldi(ldi) => {
-                        output.push_str(&format!("ldi {} {}\n", ldi.operand.displ(), ldi.dest.displ()));
+                        output.push_str(&format!("ldi {} {}\n", ldi.dest.displ(), ldi.operand.displ()));
                     }
                     code_gen::nodes::Instruction::Adi(adi) => {
                         output.push_str(&format!("adi {} {}\n", adi.operand.displ(), adi.dest.displ()));
@@ -89,7 +89,7 @@ impl Emitter {
                         output.push_str(&format!("lod {} {} {}\n", lod.a.displ(), lod.dest.displ(), lod.b.displ()));
                     }
                     code_gen::nodes::Instruction::Str(str) => {
-                        output.push_str(&format!("str {} {} {}\n", str.dest.displ(), str.a.displ(), str.b.displ()));
+                        output.push_str(&format!("str {} {} {}\n", str.dest.displ(), str.b.displ(), str.a.displ()));
                     }
                     code_gen::nodes::Instruction::Cmp(cmp) => {
                         output.push_str(&format!("cmp {}, {}\n", &cmp.operand.displ(), cmp.dest.displ()));

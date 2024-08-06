@@ -32,266 +32,146 @@ impl Pass {
         program
     }
 
-    fn args_are_memory(&self, arg1: &nodes::Operand, arg2: &nodes::Operand) -> (bool, u8, u8) {
-        match arg1 {
-            nodes::Operand::Memory(idx1) => {
-                match arg2 {
-                    nodes::Operand::Memory(idx2) => {
-                        return (true, *idx1, *idx2);
-                    },
-                    _ => {
-                        return (false, 0, 0);
-                    },
-                }
+    fn arg_is_memory(&self, arg: &nodes::Operand) -> (bool, u8) {
+        match arg {
+            nodes::Operand::Memory(idx) => {
+                return (true, *idx);
             },
             _ => {
-                return (false, 0, 0);
+                return (false, 0);
             },
         }
     }
 
-    fn arg_is_immediate(&self, arg: &nodes::Operand) -> bool {
+    fn arg_to_reg(&self, arg: &nodes::Operand, instructions: &mut Vec<nodes::Instruction>, reg: nodes::Reg) {
         match arg {
-            nodes::Operand::Immediate(_) => true,
-            _ => false,
+            nodes::Operand::Memory(idx) => {
+                instructions.push(nodes::Instruction::Lod(nodes::BinOp {
+                    a: nodes::Operand::Memory(*idx),
+                    b: nodes::Operand::Immediate(0),
+                    dest: nodes::Operand::Register(reg),
+                }));
+            },
+            nodes::Operand::Immediate(val) => {
+                instructions.push(nodes::Instruction::Ldi(nodes::UnaryOp {
+                    operand: nodes::Operand::Immediate(*val),
+                    dest: nodes::Operand::Register(reg),
+                }));
+            },
+            _ => {
+                instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                    operand: arg.clone(),
+                    dest: nodes::Operand::Register(reg),
+                }));
+            },
         }
     }
 
     fn emit_instruction(&self, statement: &nodes::Instruction, instructions: &mut Vec<nodes::Instruction>) {
         match statement {
             nodes::Instruction::Mov(ref mov) => {
-                let (is_memory, idx1, idx2) = self.args_are_memory(&mov.dest, &mov.src);
-                if is_memory {
-                    instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                        dest: nodes::Operand::Register(nodes::Reg::R10),
-                        src: nodes::Operand::Memory(idx2),
-                        suffix: mov.suffix.clone(),
-                    }));
-                    instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                        dest: nodes::Operand::Memory(idx1),
-                        src: nodes::Operand::Register(nodes::Reg::R10),
-                        suffix: mov.suffix.clone(),
-                    }));
+                /*
+                our mov cmds are:
+                mov {reg} to {reg}
+                ldi {imm} to {reg}
+                lod {adr (reg)}+{offset} to {reg}
+                str {adr (reg)}+{offset} to {mem}
+                 */
+
+                let (src_is_mem, src_idx) = self.arg_is_memory(&mov.operand);
+                let (dest_is_mem, dest_idx) = self.arg_is_memory(&mov.dest);
+
+                if !src_is_mem && !dest_is_mem {
+                    instructions.push(statement.clone());
                     return;
                 }
 
-                instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                    dest: mov.dest.clone(),
-                    src: mov.src.clone(),
-                    suffix: mov.suffix.clone(),
-                }));
+                self.arg_to_reg(&mov.operand, instructions, nodes::Reg::R10);
+
+                if dest_is_mem {
+                    instructions.push(nodes::Instruction::Str(nodes::BinOp {
+                        a: nodes::Operand::Register(nodes::Reg::R10),
+                        b: nodes::Operand::Immediate(0),
+                        dest: nodes::Operand::Memory(dest_idx),
+                    }));
+                    return;
+                } else {
+                    instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                        operand: nodes::Operand::Register(nodes::Reg::R10),
+                        dest: mov.dest.clone(),
+                    }));
+                    return;
+                }
             },
             nodes::Instruction::Add(ref add) => {
-                let (is_memory, idx1, idx2) = self.args_are_memory(&add.dest, &add.src);
-                if is_memory {
-                    instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                        dest: nodes::Operand::Register(nodes::Reg::R10),
-                        src: nodes::Operand::Memory(idx2),
-                        suffix: add.suffix.clone(),
-                    }));
+                let (a_is_mem, a_idx) = self.arg_is_memory(&add.a);
+                let (b_is_mem, b_idx) = self.arg_is_memory(&add.b);
+                let (dest_is_mem, dest_idx) = self.arg_is_memory(&add.dest);
+
+                // get a into R10 and b into R11
+                self.arg_to_reg(&add.a, instructions, nodes::Reg::R10);
+                self.arg_to_reg(&add.b, instructions, nodes::Reg::R11);
+
+                if dest_is_mem {
                     instructions.push(nodes::Instruction::Add(nodes::BinOp {
-                        dest: nodes::Operand::Memory(idx1),
-                        src: nodes::Operand::Register(nodes::Reg::R10),
-                        suffix: add.suffix.clone(),
+                        a: nodes::Operand::Register(nodes::Reg::R10),
+                        b: nodes::Operand::Register(nodes::Reg::R11),
+                        dest: nodes::Operand::Register(nodes::Reg::R10),
+                    }));
+                    instructions.push(nodes::Instruction::Str(nodes::BinOp {
+                        a: nodes::Operand::Register(nodes::Reg::R10),
+                        b: nodes::Operand::Immediate(0),
+                        dest: nodes::Operand::Memory(dest_idx),
                     }));
                     return;
                 }
-
                 instructions.push(nodes::Instruction::Add(nodes::BinOp {
+                    a: nodes::Operand::Register(nodes::Reg::R10),
+                    b: nodes::Operand::Register(nodes::Reg::R11),
                     dest: add.dest.clone(),
-                    src: add.src.clone(),
-                    suffix: add.suffix.clone(),
                 }));
             }
             nodes::Instruction::Sub(ref sub) => {
-                let (is_memory, idx1, idx2) = self.args_are_memory(&sub.dest, &sub.src);
-                if is_memory {
-                    instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                        dest: nodes::Operand::Register(nodes::Reg::R10),
-                        src: nodes::Operand::Memory(idx2),
-                        suffix: sub.suffix.clone(),
-                    }));
+                let (a_is_mem, a_idx) = self.arg_is_memory(&sub.a);
+                let (b_is_mem, b_idx) = self.arg_is_memory(&sub.b);
+                let (dest_is_mem, dest_idx) = self.arg_is_memory(&sub.dest);
+
+                // get a into R10 and b into R11
+                self.arg_to_reg(&sub.a, instructions, nodes::Reg::R10);
+                self.arg_to_reg(&sub.b, instructions, nodes::Reg::R11);
+
+                if dest_is_mem {
                     instructions.push(nodes::Instruction::Sub(nodes::BinOp {
-                        dest: nodes::Operand::Memory(idx1),
-                        src: nodes::Operand::Register(nodes::Reg::R10),
-                        suffix: sub.suffix.clone(),
+                        a: nodes::Operand::Register(nodes::Reg::R10),
+                        b: nodes::Operand::Register(nodes::Reg::R11),
+                        dest: nodes::Operand::Register(nodes::Reg::R10),
+                    }));
+                    instructions.push(nodes::Instruction::Str(nodes::BinOp {
+                        a: nodes::Operand::Register(nodes::Reg::R10),
+                        b: nodes::Operand::Immediate(0),
+                        dest: nodes::Operand::Memory(dest_idx),
                     }));
                     return;
                 }
+                instructions.push(nodes::Instruction::Sub(nodes::BinOp {
+                    a: nodes::Operand::Register(nodes::Reg::R10),
+                    b: nodes::Operand::Register(nodes::Reg::R11),
+                    dest: sub.dest.clone(),
+                }));
+            }
+            nodes::Instruction::Cmp(ref cmp) => {
+                let (operand_is_mem, operand_idx) = self.arg_is_memory(&cmp.operand);
+
+                // cmp is converted to `sub {operand} {dest} r0`
+
+                self.arg_to_reg(&cmp.operand, instructions, nodes::Reg::R10);
+                self.arg_to_reg(&cmp.dest, instructions, nodes::Reg::R11);
 
                 instructions.push(nodes::Instruction::Sub(nodes::BinOp {
-                    dest: sub.dest.clone(),
-                    src: sub.src.clone(),
-                    suffix: sub.suffix.clone(),
+                    a: nodes::Operand::Register(nodes::Reg::R10),
+                    b: nodes::Operand::Register(nodes::Reg::R11),
+                    dest: nodes::Operand::Register(nodes::Reg::R0),
                 }));
-            }
-            nodes::Instruction::Mul(ref mul) => {
-                let (is_memory, idx1, idx2) = self.args_are_memory(&mul.dest, &mul.src);
-                if is_memory {
-                    instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                        dest: nodes::Operand::Register(nodes::Reg::R10),
-                        src: nodes::Operand::Memory(idx2),
-                        suffix: mul.suffix.clone(),
-                    }));
-                    instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                        dest: nodes::Operand::Register(nodes::Reg::R11),
-                        src: nodes::Operand::Memory(idx1),
-                        suffix: mul.suffix.clone(),
-                    }));
-                    instructions.push(nodes::Instruction::Mul(nodes::BinOp {
-                        dest: nodes::Operand::Register(nodes::Reg::R11),
-                        src: nodes::Operand::Register(nodes::Reg::R10),
-                        suffix: mul.suffix.clone(),
-                    }));
-                    instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                        dest: nodes::Operand::Memory(idx1),
-                        src: nodes::Operand::Register(nodes::Reg::R11),
-                        suffix: mul.suffix.clone(),
-                    }));
-                    return;
-                }
-
-                if let nodes::Operand::Memory(idx1) = &mul.dest {
-                    instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                        dest: nodes::Operand::Register(nodes::Reg::R11),
-                        src: nodes::Operand::Memory(*idx1),
-                        suffix: mul.suffix.clone(),
-                    }));
-                    instructions.push(nodes::Instruction::Mul(nodes::BinOp {
-                        dest: nodes::Operand::Register(nodes::Reg::R11),
-                        src: mul.src.clone(),
-                        suffix: mul.suffix.clone(),
-                    }));
-                    instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                        dest: nodes::Operand::Memory(*idx1),
-                        src: nodes::Operand::Register(nodes::Reg::R11),
-                        suffix: mul.suffix.clone(),
-                    }));
-                    return;
-                }
-
-                instructions.push(nodes::Instruction::Mul(nodes::BinOp {
-                    dest: mul.dest.clone(),
-                    src: mul.src.clone(),
-                    suffix: mul.suffix.clone(),
-                }));
-            }
-            nodes::Instruction::IDiv(ref div) => {
-                if let nodes::Operand::Immediate(val) = &div.operand {
-                    instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                        dest: nodes::Operand::Register(nodes::Reg::R10),
-                        src: nodes::Operand::Immediate(*val),
-                        suffix: div.suffix.clone(),
-                    }));
-                    instructions.push(nodes::Instruction::IDiv(nodes::UnaryOp {
-                        operand: nodes::Operand::Register(nodes::Reg::R10),
-                        suffix: div.suffix.clone(),
-                    }));
-                    return;
-                }
-
-                instructions.push(statement.clone());
-            },
-            nodes::Instruction::Div(ref div) => {
-                if let nodes::Operand::Immediate(val) = &div.operand {
-                    instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                        dest: nodes::Operand::Register(nodes::Reg::R10),
-                        src: nodes::Operand::Immediate(*val),
-                        suffix: div.suffix.clone(),
-                    }));
-                    instructions.push(nodes::Instruction::IDiv(nodes::UnaryOp {
-                        operand: nodes::Operand::Register(nodes::Reg::R10),
-                        suffix: div.suffix.clone(),
-                    }));
-                    return;
-                }
-
-                instructions.push(statement.clone());
-            },
-            nodes::Instruction::Cmp(ref cmp) => {
-                let (is_memory, idx1, idx2) = self.args_are_memory(&cmp.dest, &cmp.src);
-                let dest_is_immediate = self.arg_is_immediate(&cmp.dest);
-                if is_memory {
-                    instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                        dest: nodes::Operand::Register(nodes::Reg::R10),
-                        src: nodes::Operand::Memory(idx2),
-                        suffix: cmp.suffix.clone(),
-                    }));
-                    if dest_is_immediate {
-                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                            dest: nodes::Operand::Register(nodes::Reg::R11),
-                            src: nodes::Operand::Memory(idx1),
-                            suffix: cmp.suffix.clone(),
-                        }));
-                        instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
-                            dest: nodes::Operand::Register(nodes::Reg::R11),
-                            src: nodes::Operand::Register(nodes::Reg::R10),
-                            suffix: cmp.suffix.clone(),
-                        }));
-                        return;
-                    }
-                    instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
-                        dest: nodes::Operand::Memory(idx1),
-                        src: nodes::Operand::Register(nodes::Reg::R10),
-                        suffix: cmp.suffix.clone(),
-                    }));
-                    return;
-                }
-
-                if dest_is_immediate {
-                    instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                        dest: nodes::Operand::Register(nodes::Reg::R11),
-                        src: cmp.src.clone(),
-                        suffix: cmp.suffix.clone(),
-                    }));
-                    instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
-                        dest: nodes::Operand::Register(nodes::Reg::R11),
-                        src: cmp.dest.clone(),
-                        suffix: cmp.suffix.clone(),
-                    }));
-                    return;
-                }
-
-                instructions.push(statement.clone());
-            },
-            nodes::Instruction::Movsx(src, dst) => {
-                let src_is_immediate = self.arg_is_immediate(src);
-                let dst_is_mem = match dst {
-                    nodes::Operand::Memory(_) => true,
-                    _ => false,
-                };
-
-                if src_is_immediate {
-                    instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                        dest: nodes::Operand::Register(nodes::Reg::R10),
-                        src: src.clone(),
-                        suffix: nodes::Suffix::L,
-                    }));
-
-                    if dst_is_mem {
-                        instructions.push(nodes::Instruction::Movsx(nodes::Operand::Register(nodes::Reg::R10), nodes::Operand::Register(nodes::Reg::R11)));
-                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                            src: nodes::Operand::Register(nodes::Reg::R11),
-                            dest: dst.clone(),
-                            suffix: nodes::Suffix::Q,
-                        }));
-                        return;
-                    }
-
-                    instructions.push(nodes::Instruction::Movsx(nodes::Operand::Register(nodes::Reg::R10), dst.clone()));
-                }
-
-                if dst_is_mem {
-                    instructions.push(nodes::Instruction::Movsx(src.clone(), nodes::Operand::Register(nodes::Reg::R11)));
-                    instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                        src: nodes::Operand::Register(nodes::Reg::R11),
-                        dest: dst.clone(),
-                        suffix: nodes::Suffix::Q,
-                    }));
-                    return;
-                }
-
-                instructions.push(nodes::Instruction::Movsx(src.clone(), dst.clone()));
             },
             _ => {
                 instructions.push(statement.clone());
