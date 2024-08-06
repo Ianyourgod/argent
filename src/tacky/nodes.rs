@@ -31,8 +31,6 @@ pub enum Instruction {
     JumpIfNotZero(String, Value),
     Label(String),
     FunCall(FunCall),
-    SignExtend(Value, Value),
-    Truncate(Value, Value),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -73,9 +71,6 @@ pub struct Binary {
 pub enum BinaryOperator {
     Add,
     Subtract,
-    Multiply,
-    Divide,
-    Modulo,
     LessThan,
     LessThanEqual,
     GreaterThan,

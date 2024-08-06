@@ -72,36 +72,7 @@ fn compile_program(input: String, input_name: &String, outfile_name: &String, ta
     let dir = std::fs::create_dir("output");
     let asm_write_res = std::fs::write("output/temp.s", code).expect("Failed to write to file");
 
-    // assemble
-    let output = std::process::Command::new("gcc")
-        .arg("output/temp.s")
-        .arg("-o")
-        .arg(outfile_name)
-        .output()
-        .expect("failed to assemble");
-
-    if output.status.code().unwrap() != 0 {
-        eprintln!("Failed to assemble: {}", output.status.code().unwrap());
-        std::process::exit(1);
-    }
-
-    if keep_asm {
-        // remove temp file
-        let remove_res = std::fs::remove_file("output/temp.s");
-    }
-
     println!("{} {}", "Finished".bright_green(), input_name);
-
-    let stdout = std::str::from_utf8(&output.stdout).unwrap();
-    let stderr = std::str::from_utf8(&output.stderr).unwrap();
-
-    if stdout.len() > 0 {
-        println!("{}", std::str::from_utf8(&output.stdout).unwrap());
-    }
-    if stderr.len() > 0 {
-        println!("{}", std::str::from_utf8(&output.stderr).unwrap());
-        std::process::exit(output.status.code().unwrap());
-    }
 }
 
 fn error(filename: String, input: String, error_message: String, line: usize, position: usize, length: usize, error_code: Option<i32>) {

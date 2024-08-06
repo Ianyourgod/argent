@@ -28,7 +28,7 @@ impl CodeGen {
     }
 
     pub fn generate_code(&mut self) -> nodes::Program {
-        let first_pass = convert_pass::Pass::new(&self.program, self.symbol_table.clone());
+        let mut first_pass = convert_pass::Pass::new(&self.program, self.symbol_table.clone());
         let first_pass_output = first_pass.run();
 
         let mut second_pass = pseudo_replace_pass::Pass::new(&first_pass_output, self.symbol_table.clone());

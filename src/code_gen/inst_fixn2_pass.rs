@@ -46,7 +46,7 @@ impl Pass {
             nodes::Instruction::Mov(ref mov) => {
                 let src_is_immediate = self.arg_is_immediate(&mov.src);
                 let dest_is_memory = match &mov.dest {
-                    nodes::Operand::StackAllocate(_) => true,
+                    nodes::Operand::Memory(_) => true,
                     _ => false,
                 };
 

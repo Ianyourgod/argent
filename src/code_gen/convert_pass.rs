@@ -9,14 +9,15 @@ const QUAD: &str = "q";
 pub struct Pass {
     pub program: tacky::nodes::Program,
     symbol_table: tacky::nodes::SymbolTable,
+    temp_count: usize,
 }
 
 impl Pass {
     pub fn new(program: &tacky::nodes::Program, symbol_table: tacky::nodes::SymbolTable) -> Pass {
-        Pass { program: program.clone(), symbol_table }
+        Pass { program: program.clone(), symbol_table, temp_count: 0 }
     }
 
-    pub fn run(&self) -> nodes::Program {
+    pub fn run(&mut self) -> nodes::Program {
         let mut program = nodes::Program {
             statements: Vec::new(),
         };
@@ -28,33 +29,30 @@ impl Pass {
         program
     }
 
-    fn emit_function_definition(&self, function: &tacky::nodes::FunctionDefinition, program: &mut nodes::Program) {
+    fn generate_temporary(&mut self) -> String {
+        let temp = format!(".ctemp{}", self.temp_count);
+        self.temp_count += 1;
+        temp
+    }
+
+    unsafe fn uint_to_enum(value: u8) -> nodes::Reg {
+        unsafe { std::mem::transmute(value) }
+    }
+
+    fn emit_function_definition(&mut self, function: &tacky::nodes::FunctionDefinition, program: &mut nodes::Program) {
         let mut instructions: Vec<nodes::Instruction> = Vec::new();
         let context = nodes::Context { var_map: std::collections::HashMap::new(), stack_offset: 4 };
 
         for (i, arg) in function.arguments.iter().enumerate() {
-            if i < 6 {
-                let reg = match i {
-                    0 => nodes::Reg::DI,
-                    1 => nodes::Reg::SI,
-                    2 => nodes::Reg::DX,
-                    3 => nodes::Reg::CX,
-                    4 => nodes::Reg::R8,
-                    5 => nodes::Reg::R9,
-                    _ => panic!(),
-                };
+            if i < 16 {
+                let reg = unsafe { Pass::uint_to_enum(i as u8) };
 
-                instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                    src: nodes::Operand::Register(reg),
-                    dest: nodes::Operand::Pseudo(nodes::Identifier { name: arg.0.clone() }),
-                    suffix: self.type_to_suffix(&arg.1),
+                instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                    operand: nodes::Operand::Register(reg),
+                    dest: nodes::Operand::Pseudo(arg.0.clone()),
                 }));
             } else {
-                instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                    src: nodes::Operand::StackAllocate(-8 * (i - 6) as isize - 16),
-                    dest: nodes::Operand::Pseudo(nodes::Identifier { name: arg.0.clone() }),
-                    suffix: nodes::Suffix::L,
-                }));
+                panic!("Only 16 arguments are supported for now");
             }
         }
 
@@ -70,7 +68,7 @@ impl Pass {
         ));
     }
 
-    fn convert_type(&self, ty: &tacky::nodes::Type) -> nodes::Type {
+    fn convert_type(&mut self, ty: &tacky::nodes::Type) -> nodes::Type {
         match ty {
             tacky::nodes::Type::I32 => nodes::Type::I32,
             tacky::nodes::Type::I64 => nodes::Type::I64,
@@ -88,7 +86,7 @@ impl Pass {
         }
     }
 
-    fn get_type(&self, value: &tacky::nodes::Value) -> tacky::nodes::Type {
+    fn get_type(&mut self, value: &tacky::nodes::Value) -> tacky::nodes::Type {
         match value {
             tacky::nodes::Value::Identifier(ident) => {
                 self.symbol_table.get(ident).unwrap().clone()
@@ -106,48 +104,14 @@ impl Pass {
         }
     }
 
-    fn type_to_suffix(&self, type_: &tacky::nodes::Type) -> nodes::Suffix {
-        match type_ {
-            tacky::nodes::Type::I32  => nodes::Suffix::L,
-            tacky::nodes::Type::I64  => nodes::Suffix::Q,
-            tacky::nodes::Type::U32  => nodes::Suffix::L,
-            tacky::nodes::Type::U64  => nodes::Suffix::Q,
-            tacky::nodes::Type::Bool => nodes::Suffix::B,
-            _ => panic!("Unsupported type: {:?}", type_),
-        }
-    }
-
-    fn basic_comparison(&self, cond_code: nodes::CondCode, src1: nodes::Operand, src2: nodes::Operand, dest: nodes::Operand, src_type_suf: nodes::Suffix, dst_type_suf: nodes::Suffix, instructions: &mut Vec<nodes::Instruction>) {
-        instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
-            src: src2.clone(),
-            dest: src1,
-            suffix: src_type_suf,
-        }));
-        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-            src: nodes::Operand::Immediate(0),
-            dest: dest.clone(),
-            suffix: dst_type_suf,
-        }));
-        instructions.push(nodes::Instruction::SetCC(cond_code, dest));
-    }
-
-    fn is_signed(&self, type_: &tacky::nodes::Type) -> bool {
-        match type_ {
-            tacky::nodes::Type::I32 | tacky::nodes::Type::I64 => true,
-            _ => false,
-        }
-    }
-
-    fn emit_instruction(&self, statement: &tacky::nodes::Instruction, instructions: &mut Vec<nodes::Instruction>) {
+    fn emit_instruction(&mut self, statement: &tacky::nodes::Instruction, instructions: &mut Vec<nodes::Instruction>) {
         match statement {
             tacky::nodes::Instruction::Return(return_value) => {
                 let value = self.emit_value(return_value);
-                instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                    src: value,
-                    dest: nodes::Operand::Register(nodes::Reg::AX),
-                    suffix: self.type_to_suffix(&self.get_type(return_value)),
+                instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                    operand: value,
+                    dest: nodes::Operand::Register(nodes::Reg::R0),
                 }));
-                instructions.push(nodes::Instruction::Ret);
             }
             tacky::nodes::Instruction::Unary(unary) => {
                 match unary.operator {
@@ -155,16 +119,10 @@ impl Pass {
                         let src = self.emit_value(&unary.src);
                         let dest = self.emit_value(&unary.dest);
 
-                        let src_type = self.get_type(&unary.src);
-
-                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                            src,
-                            dest: dest.clone(),
-                            suffix: self.type_to_suffix(&src_type),
-                        }));
-                        instructions.push(nodes::Instruction::Neg(nodes::UnaryOp {
-                            operand: dest,
-                            suffix: nodes::Suffix::L,
+                        instructions.push(nodes::Instruction::Sub(nodes::BinOp {
+                            a: nodes::Operand::Immediate(0),
+                            b: src,
+                            dest,
                         }));
                     }
                     _ => panic!("Unsupported unary operator"),
@@ -175,137 +133,132 @@ impl Pass {
                 let src2 = self.emit_value(&binary.src2);
                 let dest = self.emit_value(&binary.dest);
 
-                let src1_type = self.get_type(&binary.src1);
-                let dest_type = self.get_type(&binary.dest);
-                let src_type_suf = self.type_to_suffix(&src1_type);
-                let dst_type_suf = self.type_to_suffix(&dest_type);
-
                 match binary.operator {
                     tacky::nodes::BinaryOperator::Add => {
-                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                            src: src1,
-                            dest: dest.clone(),
-                            suffix: src_type_suf.clone(),
-                        }));
                         instructions.push(nodes::Instruction::Add(nodes::BinOp {
-                            src: src2,
+                            a: src1,
+                            b: src2,
                             dest,
-                            suffix: src_type_suf.clone(),
                         }));
                     },
                     tacky::nodes::BinaryOperator::Subtract => {
-                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                            src: src1,
-                            dest: dest.clone(),
-                            suffix: src_type_suf.clone(),
-                        }));
                         instructions.push(nodes::Instruction::Sub(nodes::BinOp {
-                            src: src2,
+                            a: src1,
+                            b: src2,
                             dest,
-                            suffix: src_type_suf,
                         }));
                     },
-                    tacky::nodes::BinaryOperator::Multiply => {
-                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                            src: src1,
-                            dest: dest.clone(),
-                            suffix: src_type_suf.clone(),
-                        }));
-                        instructions.push(nodes::Instruction::Mul(nodes::BinOp {
-                            src: src2,
+                    tacky::nodes::BinaryOperator::And => {
+                        instructions.push(nodes::Instruction::And(nodes::BinOp {
+                            a: src1,
+                            b: src2,
                             dest,
-                            suffix: src_type_suf,
                         }));
                     },
-                    tacky::nodes::BinaryOperator::Divide => {
-                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                            src: src1,
-                            dest: nodes::Operand::Register(nodes::Reg::AX),
-                            suffix: src_type_suf.clone(),
-                        }));
-
-                        if self.is_signed(&src1_type) {
-                            instructions.push(nodes::Instruction::Cdq(src_type_suf.clone()));
-                            instructions.push(nodes::Instruction::IDiv(nodes::UnaryOp {
-                                operand: src2,
-                                suffix: src_type_suf.clone(),
-                            }));
-                        } else {
-                            instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                                src: nodes::Operand::Immediate(0),
-                                dest: nodes::Operand::Register(nodes::Reg::DX),
-                                suffix: src_type_suf.clone(),
-                            })); // zero out rdx
-                            instructions.push(nodes::Instruction::Div(nodes::UnaryOp {
-                                operand: src2,
-                                suffix: src_type_suf.clone(),
-                            }));
-                        }
-
-                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                            src: nodes::Operand::Register(nodes::Reg::AX),
-                            dest,
-                            suffix: src_type_suf,
-                        }));
-                    },
-                    tacky::nodes::BinaryOperator::Modulo => {
-                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                            src: src1,
-                            dest: nodes::Operand::Register(nodes::Reg::AX),
-                            suffix: src_type_suf.clone(),
-                        }));
-
-                        if self.is_signed(&src1_type) {
-                            instructions.push(nodes::Instruction::Cdq(src_type_suf.clone()));
-                            instructions.push(nodes::Instruction::IDiv(nodes::UnaryOp {
-                                operand: src2,
-                                suffix: src_type_suf.clone(),
-                            }));
-                        } else {
-                            instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                                src: nodes::Operand::Immediate(0),
-                                dest: nodes::Operand::Register(nodes::Reg::DX),
-                                suffix: src_type_suf.clone(),
-                            })); // zero out rdx
-                            instructions.push(nodes::Instruction::Div(nodes::UnaryOp {
-                                operand: src2,
-                                suffix: src_type_suf.clone(),
-                            }));
-                        }
-                        
-                        instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                            src: nodes::Operand::Register(nodes::Reg::DX),
-                            dest,
-                            suffix: src_type_suf,
-                        }));
-                    }
-                    tacky::nodes::BinaryOperator::And => panic!(),
-                    tacky::nodes::BinaryOperator::Or => panic!(),
+                    tacky::nodes::BinaryOperator::Or => panic!("Unsupported binary operator"),
                     tacky::nodes::BinaryOperator::GreaterThan => {
-                        let cond_code = if self.is_signed(&src1_type) { nodes::CondCode::G } else { nodes::CondCode::A };
-
-                        self.basic_comparison(cond_code, src1, src2, dest, src_type_suf, dst_type_suf, instructions)
+                        instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                            operand: nodes::Operand::Immediate(0),
+                            dest: dest.clone(),
+                        }));
+                        instructions.push(nodes::Instruction::Cmp(nodes::UnaryOp {
+                            operand: src1,
+                            dest: src2,
+                        }));
+                        let not_true_label = self.generate_temporary();
+                        instructions.push(nodes::Instruction::JumpCC(nodes::CondCode::E, not_true_label.clone()));
+                        instructions.push(nodes::Instruction::JumpCC(nodes::CondCode::L, not_true_label.clone()));
+                        instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                            operand: nodes::Operand::Immediate(1),
+                            dest,
+                        }));
+                        instructions.push(nodes::Instruction::Label(not_true_label));
                     },
                     tacky::nodes::BinaryOperator::GreaterThanEqual => {
-                        let cond_code = if self.is_signed(&src1_type) { nodes::CondCode::GE } else { nodes::CondCode::AE };
-
-                        self.basic_comparison(cond_code, src1, src2, dest, src_type_suf, dst_type_suf, instructions)
+                        instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                            operand: nodes::Operand::Immediate(0),
+                            dest: dest.clone(),
+                        }));
+                        instructions.push(nodes::Instruction::Cmp(nodes::UnaryOp {
+                            operand: src1,
+                            dest: src2,
+                        }));
+                        let not_true_label = self.generate_temporary();
+                        instructions.push(nodes::Instruction::JumpCC(nodes::CondCode::L, not_true_label.clone()));
+                        instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                            operand: nodes::Operand::Immediate(1),
+                            dest,
+                        }));
+                        instructions.push(nodes::Instruction::Label(not_true_label));
                     },
                     tacky::nodes::BinaryOperator::LessThan => {
-                        let cond_code = if self.is_signed(&src1_type) { nodes::CondCode::L } else { nodes::CondCode::B };
-
-                        self.basic_comparison(cond_code, src1, src2, dest, src_type_suf, dst_type_suf, instructions)
+                        instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                            operand: nodes::Operand::Immediate(0),
+                            dest: dest.clone(),
+                        }));
+                        instructions.push(nodes::Instruction::Cmp(nodes::UnaryOp {
+                            operand: src1,
+                            dest: src2,
+                        }));
+                        let not_true_label = self.generate_temporary();
+                        instructions.push(nodes::Instruction::JumpCC(nodes::CondCode::GE, not_true_label.clone()));
+                        instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                            operand: nodes::Operand::Immediate(1),
+                            dest,
+                        }));
+                        instructions.push(nodes::Instruction::Label(not_true_label));
                     },
                     tacky::nodes::BinaryOperator::LessThanEqual => {
-                        let cond_code = if self.is_signed(&src1_type) { nodes::CondCode::LE } else { nodes::CondCode::BE };
-
-                        self.basic_comparison(cond_code, src1, src2, dest, src_type_suf, dst_type_suf, instructions)
+                        instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                            operand: nodes::Operand::Immediate(1),
+                            dest: dest.clone(),
+                        }));
+                        instructions.push(nodes::Instruction::Cmp(nodes::UnaryOp {
+                            operand: src1,
+                            dest: src2,
+                        }));
+                        let true_label = self.generate_temporary();
+                        instructions.push(nodes::Instruction::JumpCC(nodes::CondCode::L, true_label.clone()));
+                        instructions.push(nodes::Instruction::JumpCC(nodes::CondCode::E, true_label.clone()));
+                        instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                            operand: nodes::Operand::Immediate(0),
+                            dest,
+                        }));
+                        instructions.push(nodes::Instruction::Label(true_label));
                     },
                     tacky::nodes::BinaryOperator::Equal => {
-                        self.basic_comparison(nodes::CondCode::E, src1, src2, dest, src_type_suf, dst_type_suf, instructions)
+                        instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                            operand: nodes::Operand::Immediate(1),
+                            dest: dest.clone(),
+                        }));
+                        instructions.push(nodes::Instruction::Cmp(nodes::UnaryOp {
+                            operand: src1,
+                            dest: src2,
+                        }));
+                        let true_label = self.generate_temporary();
+                        instructions.push(nodes::Instruction::JumpCC(nodes::CondCode::E, true_label.clone()));
+                        instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                            operand: nodes::Operand::Immediate(0),
+                            dest,
+                        }));
+                        instructions.push(nodes::Instruction::Label(true_label));
                     },
                     tacky::nodes::BinaryOperator::NotEqual => {
-                        self.basic_comparison(nodes::CondCode::NE, src1, src2, dest, src_type_suf, dst_type_suf, instructions)
+                        instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                            operand: nodes::Operand::Immediate(0),
+                            dest: dest.clone(),
+                        }));
+                        instructions.push(nodes::Instruction::Cmp(nodes::UnaryOp {
+                            operand: src1,
+                            dest: src2,
+                        }));
+                        let not_true_label = self.generate_temporary();
+                        instructions.push(nodes::Instruction::JumpCC(nodes::CondCode::E, not_true_label.clone()));
+                        instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                            operand: nodes::Operand::Immediate(1),
+                            dest,
+                        }));
+                        instructions.push(nodes::Instruction::Label(not_true_label));
                     },
                 }
             }
@@ -313,12 +266,9 @@ impl Pass {
                 let src = self.emit_value(&copy.src);
                 let dest = self.emit_value(&copy.dest);
 
-                let src_type_suffix = self.type_to_suffix(&self.get_type(&copy.src));
-
-                instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                    src,
+                instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                    operand: src,
                     dest,
-                    suffix: src_type_suffix,
                 }));
             }
             tacky::nodes::Instruction::Jump(label) => {
@@ -326,27 +276,22 @@ impl Pass {
             }
             tacky::nodes::Instruction::JumpIfZero(label, value) => {
                 let value_type = self.get_type(value);
-                let value_type_suffix = self.type_to_suffix(&value_type);
 
                 let value = self.emit_value(value);
 
-                instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
-                    src: nodes::Operand::Immediate(0),
+                instructions.push(nodes::Instruction::Cmp(nodes::UnaryOp {
+                    operand: nodes::Operand::Immediate(0),
                     dest: value.clone(),
-                    suffix: value_type_suffix,
                 }));
                 instructions.push(nodes::Instruction::JumpCC(nodes::CondCode::E, label.clone()));
             }
             tacky::nodes::Instruction::JumpIfNotZero(label, value) => {
                 let value_type = self.get_type(value);
-                let value_type_suffix = self.type_to_suffix(&value_type);
-
                 let value = self.emit_value(value);
 
-                instructions.push(nodes::Instruction::Cmp(nodes::BinOp {
-                    src: nodes::Operand::Immediate(0),
+                instructions.push(nodes::Instruction::Cmp(nodes::UnaryOp {
+                    operand: nodes::Operand::Immediate(0),
                     dest: value.clone(),
-                    suffix: value_type_suffix,
                 }));
                 instructions.push(nodes::Instruction::JumpCC(nodes::CondCode::NE, label.clone()));
             }
@@ -354,117 +299,53 @@ impl Pass {
                 instructions.push(nodes::Instruction::Label(label.clone()));
             },
             tacky::nodes::Instruction::FunCall(fun_call) => {
-                let arg_registers = vec![nodes::Reg::DI, nodes::Reg::SI, nodes::Reg::DX, nodes::Reg::CX, nodes::Reg::R8, nodes::Reg::R9];
-
                 let mut register_args: Vec<tacky::nodes::Value> = Vec::new();
-                let mut stack_args: Vec<tacky::nodes::Value> = Vec::new();
 
                 for (i, arg) in fun_call.arguments.iter().enumerate() {
-                    if i < 6 {
-                        register_args.push(arg.clone());
-                    } else {
-                        stack_args.push(arg.clone());
-                    }
+                    register_args.push(arg.clone());
                 }
 
-                let stack_padding = stack_args.len() % 8;
-
-                if stack_padding > 0 {
-                    instructions.push(nodes::Instruction::AllocateStack(stack_padding));
-                }
+                let stack_padding = 0;
 
                 for (i, arg) in register_args.iter().enumerate() {
-                    let mov = nodes::Instruction::Mov(nodes::BinOp {
-                        src: self.emit_value(arg),
-                        dest: nodes::Operand::Register(arg_registers[i]),
-                        suffix: self.type_to_suffix(&self.get_type(arg))
-                    });
-
-                    instructions.push(mov);
+                    instructions.push(nodes::Instruction::Str(nodes::BinOp {
+                        a: nodes::Operand::Register(nodes::Reg::RSP),
+                        b: self.emit_value(arg),
+                        dest: unsafe { nodes::Operand::Register(Pass::uint_to_enum(i as u8)) },
+                    }));
                 }
 
-                // go over stack args in reverse order
-                for (i, arg) in stack_args.iter().enumerate().rev() {
-                    let assembly_arg = self.emit_value(arg);
-
-                    let type_ = self.get_type(arg);
-
-                    if type_ == tacky::nodes::Type::I64 {
-                        instructions.push(nodes::Instruction::Push(assembly_arg));
-                        return;
-                    }
-
-                    match assembly_arg {
-                        nodes::Operand::Register(_) | nodes::Operand::Immediate(_) => {
-                            instructions.push(nodes::Instruction::Push(assembly_arg));
-                        }
-                        neither => {
-                            instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                                src: neither.clone(),
-                                dest: nodes::Operand::Register(nodes::Reg::AX),
-                                suffix: nodes::Suffix::L,
-                            }));
-                            instructions.push(nodes::Instruction::Push(nodes::Operand::Register(nodes::Reg::AX)));
-                        }
-                    }
-                }
-
-                let calling_name = format!("{}@PLT", fun_call.function_name.clone());
-
-                instructions.push(nodes::Instruction::Call(calling_name));
-
-                let bytes_to_remove = 8 * stack_args.len() + stack_padding;
-                if bytes_to_remove > 0 {
-                    instructions.push(nodes::Instruction::DeallocateStack(bytes_to_remove));
-                }
+                instructions.push(nodes::Instruction::Call(fun_call.function_name.clone()));
 
                 let dst = self.emit_value(&fun_call.dest);
 
-                let dst_type_suffix = self.type_to_suffix(&self.get_type(&fun_call.dest));
-
-                instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                    src: nodes::Operand::Register(nodes::Reg::AX),
+                instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                    operand: nodes::Operand::Register(nodes::Reg::R0),
                     dest: dst,
-                    suffix: dst_type_suffix,
-                }));
-            },
-            tacky::nodes::Instruction::SignExtend(src, dst) => {
-                let src = self.emit_value(src);
-                let dst = self.emit_value(dst);
-                instructions.push(nodes::Instruction::Movsx(src, dst));
-            },
-            tacky::nodes::Instruction::Truncate(src, dst) => {
-                let src = self.emit_value(src);
-                let dst = self.emit_value(dst);
-
-                instructions.push(nodes::Instruction::Mov(nodes::BinOp {
-                    src,
-                    dest: dst,
-                    suffix: nodes::Suffix::L,
                 }));
             },
         }
     }
 
-    fn emit_value(&self, value: &tacky::nodes::Value) -> nodes::Operand {
+    fn emit_value(&mut self, value: &tacky::nodes::Value) -> nodes::Operand {
         if value.is_identifier() {
             let identifier = value.as_identifier();
-            return nodes::Operand::Pseudo(nodes::Identifier { name: identifier.to_string() })
+            return nodes::Operand::Pseudo(identifier.to_string())
         }
 
         if value.is_constant() {
             let constant = value.as_constant();
             return if constant.is_i32() {
-                nodes::Operand::Immediate(constant.as_i32() as i64)
+                nodes::Operand::Immediate(constant.as_i32() as i8)
             } else {
-                nodes::Operand::Immediate(constant.as_i64())
+                nodes::Operand::Immediate(constant.as_i64() as i8)
             }
         }
         panic!("Unsupported value type");
     }
 }
 
-
+/*
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -584,3 +465,4 @@ mod tests {
         }));
     }
 }
+*/

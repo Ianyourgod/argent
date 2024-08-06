@@ -280,9 +280,6 @@ impl Tacky {
                 let operator = match op {
                     parser::nodes::BinOp::Add => nodes::BinaryOperator::Add,
                     parser::nodes::BinOp::Subtract => nodes::BinaryOperator::Subtract,
-                    parser::nodes::BinOp::Multiply => nodes::BinaryOperator::Multiply,
-                    parser::nodes::BinOp::Divide => nodes::BinaryOperator::Divide,
-                    parser::nodes::BinOp::Modulo => nodes::BinaryOperator::Modulo,
                     parser::nodes::BinOp::LessThan => nodes::BinaryOperator::LessThan,
                     parser::nodes::BinOp::LessThanEqual => nodes::BinaryOperator::LessThanEqual,
                     parser::nodes::BinOp::GreaterThan => nodes::BinaryOperator::GreaterThan,
@@ -372,34 +369,6 @@ impl Tacky {
                     arguments,
                     dest: dest.clone(),
                 }));
-                dest
-            },
-            parser::nodes::Expression::Cast(expr, type_) => {
-                if type_.is_none() {
-                    panic!("Type not specified for cast");
-                }
-
-                let u_type = self.convert_type(&type_.as_ref().unwrap());
-
-                let value = self.emit_tacky_expression(&*expr, instructions);
-
-                if self.get_tacky_type(&expr) == u_type {
-                    return value;
-                }
-                let dest = self.make_tacky_var(u_type.clone());
-
-                if u_type == nodes::Type::I64 {
-                    instructions.instructions.push(nodes::Instruction::SignExtend(value, dest.clone()));
-                } else {
-                    let trun_val = if value.is_constant() {
-                        return nodes::Value::Constant(nodes::Constant::I32(value.as_constant().as_i32()));
-                    } else {
-                        value.clone()
-                    };
-
-                    instructions.instructions.push(nodes::Instruction::Truncate(trun_val, dest.clone())); // todo: maybe get rid of this?
-                }
-
                 dest
             },
             #[allow(unreachable_patterns)]
