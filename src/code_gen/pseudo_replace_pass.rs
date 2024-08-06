@@ -223,17 +223,10 @@ impl Pass {
                         nodes::Operand::Memory(*offset as u8)
                     },
                     None => {
-                        let size = if self.symbol_table.get(&identifier.clone()).unwrap() == &tacky::nodes::Type::I32 {
-                            4
-                        } else {
-                            8
-                        };
+                        let size = 1;
 
-                        let offset = context.stack_offset % 8;
+                        let offset = context.stack_offset;
 
-                        if size == 8 && offset != 0 {
-                            context.stack_offset += 8 - offset;
-                        }
                         context.stack_offset += size;
                         context.var_map.insert(identifier.clone(), context.stack_offset);
                         nodes::Operand::Memory(context.stack_offset as u8)

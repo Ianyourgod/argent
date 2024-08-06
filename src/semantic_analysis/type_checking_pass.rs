@@ -65,6 +65,7 @@ impl Pass {
         (program, symbol_table)
     }
 
+
     fn can_convert(&self, from: &nodes::Type, to: &nodes::Type) -> bool {
         let can_convert = vec![
             (&nodes::Type::GenericInt, &nodes::Type::I32),
@@ -80,6 +81,7 @@ impl Pass {
         can_convert.contains(&(from, to))
     }
 
+    /*
     fn convert_to(&self, e: nodes::Expression, t: nodes::Type, symbol_table: &symbol_table::SymbolTable) -> Box<nodes::Expression> {
         let typed_e = self.typecheck_expression(Box::new(e), symbol_table);
         
@@ -94,6 +96,7 @@ impl Pass {
             Box::new(nodes::Expression::Cast(typed_e.0, Some(t)))
         }
     }
+    */
 
     fn typecheck_statement(&self, statement: Box<nodes::Statement>, symbol_table: &mut symbol_table::SymbolTable, context: &Context) -> Box<nodes::Statement> {
         match *statement {
@@ -115,12 +118,15 @@ impl Pass {
                     },
                 };
 
-                let converted_expr = self.convert_to(*typed_expr.0.clone(), type_.clone(), symbol_table);
+                let can_convert = self.can_convert(&typed_expr.1, &type_);
+                if !can_convert && typed_expr.1 != type_ {
+                    panic!("Type mismatch: {:?} and {:?}", typed_expr.1, type_);
+                }
 
                 Box::new(nodes::Statement::VariableDeclaration(nodes::VariableDeclaration {
                     kind: type_,
                     ident: decl.ident,
-                    expr: Some(converted_expr),
+                    expr: Some(typed_expr.0),
                 }))
             },
             nodes::Statement::ReturnStatement(ret) => {
@@ -130,10 +136,14 @@ impl Pass {
                     //panic!("Return type mismatch: value {:?} and fn {:?}", type_.1, context.func_return_type);
 
                     // cast
-                    let converted_expr = self.convert_to(*type_.0.clone(), context.func_return_type.clone(), symbol_table);
+                    //let converted_expr = self.convert_to(*type_.0.clone(), context.func_return_type.clone(), symbol_table);
+                    let can_convert = self.can_convert(&type_.1, &context.func_return_type);
+                    if !can_convert && type_.1 != context.func_return_type {
+                        panic!("Return type mismatch: value {:?} and fn {:?}", type_.1, context.func_return_type);
+                    }
 
                     return Box::new(nodes::Statement::ReturnStatement(nodes::ReturnStatement {
-                        return_value: converted_expr,
+                        return_value: type_.0,
                     }));
                 }
 
@@ -209,9 +219,13 @@ impl Pass {
 
                 let typed_expr = self.typecheck_expression(expr, symbol_table);
 
-                let converted_expr = self.convert_to(*typed_expr.0.clone(), typed_expr.1.clone(), symbol_table);
+                //let converted_expr = self.convert_to(*typed_expr.0.clone(), typed_expr.1.clone(), symbol_table);
+                let can_convert = self.can_convert(&typed_expr.1, &type_);
+                if !can_convert && typed_expr.1 != type_ {
+                    panic!("Type mismatch: {:?} and {:?}", typed_expr.1, type_);
+                }
 
-                (Box::new(nodes::Expression::Assignment(ident, converted_expr, Some(type_.clone()))), type_)
+                (Box::new(nodes::Expression::Assignment(ident, typed_expr.0, Some(type_.clone()))), type_)
             },
             nodes::Expression::BinOp(left, op, right, _) => {
                 let typed_left = self.typecheck_expression(left, symbol_table);
@@ -236,16 +250,20 @@ impl Pass {
                     typed_left.1.clone()
                 };
 
-                let converted_left = self.convert_to(*typed_left.0.clone(), common_type.clone(), symbol_table);
-                let converted_right = self.convert_to(*typed_right.0.clone(), common_type.clone(), symbol_table);
+                //let converted_left = self.convert_to(*typed_left.0.clone(), common_type.clone(), symbol_table);
+                //let converted_right = self.convert_to(*typed_right.0.clone(), common_type.clone(), symbol_table);
+            
+                if !can_convert && typed_left.1 != typed_right.1 {
+                    panic!("Type mismatch: {:?} and {:?}", typed_left.1, typed_right.1);
+                }
 
                 let ret_type = if self.is_comparison(op) {
                     nodes::Type::Bool
                 } else {
-                    common_type
+                    typed_left.1.clone()
                 };
 
-                (Box::new(nodes::Expression::BinOp(converted_left, op, converted_right, Some(ret_type.clone()))), ret_type)
+                (Box::new(nodes::Expression::BinOp(typed_left.0, op, typed_right.0, Some(ret_type.clone()))), ret_type)
             },
             nodes::Expression::UnaryOp(op, expr, _) => {
                 let typed_expr = self.typecheck_expression(expr, symbol_table);
@@ -294,9 +312,13 @@ impl Pass {
                 for (i, arg) in args.iter().enumerate() {
                     let typed_arg = self.typecheck_expression(arg.clone(), symbol_table);
 
-                    let converted_arg = self.convert_to(*typed_arg.0.clone(), params[i].clone(), symbol_table);
+                    //let converted_arg = self.convert_to(*typed_arg.0.clone(), params[i].clone(), symbol_table);
+                    let can_convert = self.can_convert(&typed_arg.1, &params[i]);
+                    if !can_convert && typed_arg.1 != params[i] {
+                        panic!("Type mismatch: {:?} and {:?}", typed_arg.1, params[i]);
+                    }
 
-                    typed_args.push((converted_arg, typed_arg.1));
+                    typed_args.push((typed_arg.0, typed_arg.1));
                 }
 
                 let func_call = nodes::Expression::FunctionCall(name, typed_args.iter().map(|arg| arg.0.clone()).collect(), Some(ret_type.clone()));

@@ -1,9 +1,7 @@
 #![allow(unused_variables)]
 
-use nix::unistd::execvp;
-use std::{ffi::{CStr, CString}, process::exit};
+use std::process::exit;
 use colored::Colorize;
-
 mod lexer;
 mod parser;
 mod semantic_analysis;
@@ -70,9 +68,9 @@ fn compile_program(input: String, input_name: &String, outfile_name: &String, ta
 
     // write to file
     let dir = std::fs::create_dir("output");
-    let asm_write_res = std::fs::write("output/temp.s", code).expect("Failed to write to file");
+    let asm_write_res = std::fs::write("output/temp.as", code).expect("Failed to write to file");
 
-    println!("{} {}", "Finished".bright_green(), input_name);
+    println!("{} {} -> output/temp.as", "Finished".bright_green(), input_name);
 }
 
 fn error(filename: String, input: String, error_message: String, line: usize, position: usize, length: usize, error_code: Option<i32>) {
@@ -174,19 +172,6 @@ fn main() {
                 let input = op_input.unwrap();
 
                 compile_program(input, filename, &outfile_name, tags.clone());
-
-                println!("{} {}", "Running".bright_green(), outfile_name);
-
-                let outfile_name_cstr = CString::new(outfile_name).expect("CString::new failed");
-                let err = execvp::<&CStr>(&outfile_name_cstr, &[]);
-
-                match err {
-                    Ok(_) => (),
-                    Err(e) => {
-                        eprintln!("failed to exec: {}", e);
-                        std::process::exit(1);
-                    }
-                }
             },
             "build" => {
                 let op_filename = std::env::args().nth(2);

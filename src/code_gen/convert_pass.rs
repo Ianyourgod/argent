@@ -41,7 +41,7 @@ impl Pass {
 
     fn emit_function_definition(&mut self, function: &tacky::nodes::FunctionDefinition, program: &mut nodes::Program) {
         let mut instructions: Vec<nodes::Instruction> = Vec::new();
-        let context = nodes::Context { var_map: std::collections::HashMap::new(), stack_offset: 4 };
+        let context = nodes::Context { var_map: std::collections::HashMap::new(), stack_offset: 0 };
 
         for (i, arg) in function.arguments.iter().enumerate() {
             if i < 16 {
@@ -59,9 +59,9 @@ impl Pass {
         for statement in &function.body.instructions {
             self.emit_instruction(statement, &mut instructions);
         }
-
+        let name = format!(".{}", function.function_name);
         program.statements.push(nodes::FunctionDefinition::new(
-            function.function_name.clone(),
+            name,
             instructions,
             context,
             self.convert_type(&function.return_type),
@@ -112,6 +112,7 @@ impl Pass {
                     operand: value,
                     dest: nodes::Operand::Register(nodes::Reg::R1),
                 }));
+                instructions.push(nodes::Instruction::Ret);
             }
             tacky::nodes::Instruction::Unary(unary) => {
                 match unary.operator {
@@ -157,7 +158,7 @@ impl Pass {
                     },
                     tacky::nodes::BinaryOperator::Or => panic!("Unsupported binary operator"),
                     tacky::nodes::BinaryOperator::GreaterThan => {
-                        instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                        instructions.push(nodes::Instruction::Ldi(nodes::UnaryOp {
                             operand: nodes::Operand::Immediate(0),
                             dest: dest.clone(),
                         }));
@@ -168,14 +169,14 @@ impl Pass {
                         let not_true_label = self.generate_temporary();
                         instructions.push(nodes::Instruction::JumpCC(nodes::CondCode::E, not_true_label.clone()));
                         instructions.push(nodes::Instruction::JumpCC(nodes::CondCode::L, not_true_label.clone()));
-                        instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                        instructions.push(nodes::Instruction::Ldi(nodes::UnaryOp {
                             operand: nodes::Operand::Immediate(1),
                             dest,
                         }));
                         instructions.push(nodes::Instruction::Label(not_true_label));
                     },
                     tacky::nodes::BinaryOperator::GreaterThanEqual => {
-                        instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                        instructions.push(nodes::Instruction::Ldi(nodes::UnaryOp {
                             operand: nodes::Operand::Immediate(0),
                             dest: dest.clone(),
                         }));
@@ -185,14 +186,14 @@ impl Pass {
                         }));
                         let not_true_label = self.generate_temporary();
                         instructions.push(nodes::Instruction::JumpCC(nodes::CondCode::L, not_true_label.clone()));
-                        instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                        instructions.push(nodes::Instruction::Ldi(nodes::UnaryOp {
                             operand: nodes::Operand::Immediate(1),
                             dest,
                         }));
                         instructions.push(nodes::Instruction::Label(not_true_label));
                     },
                     tacky::nodes::BinaryOperator::LessThan => {
-                        instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                        instructions.push(nodes::Instruction::Ldi(nodes::UnaryOp {
                             operand: nodes::Operand::Immediate(0),
                             dest: dest.clone(),
                         }));
@@ -202,14 +203,14 @@ impl Pass {
                         }));
                         let not_true_label = self.generate_temporary();
                         instructions.push(nodes::Instruction::JumpCC(nodes::CondCode::GE, not_true_label.clone()));
-                        instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                        instructions.push(nodes::Instruction::Ldi(nodes::UnaryOp {
                             operand: nodes::Operand::Immediate(1),
                             dest,
                         }));
                         instructions.push(nodes::Instruction::Label(not_true_label));
                     },
                     tacky::nodes::BinaryOperator::LessThanEqual => {
-                        instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                        instructions.push(nodes::Instruction::Ldi(nodes::UnaryOp {
                             operand: nodes::Operand::Immediate(1),
                             dest: dest.clone(),
                         }));
@@ -220,14 +221,14 @@ impl Pass {
                         let true_label = self.generate_temporary();
                         instructions.push(nodes::Instruction::JumpCC(nodes::CondCode::L, true_label.clone()));
                         instructions.push(nodes::Instruction::JumpCC(nodes::CondCode::E, true_label.clone()));
-                        instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                        instructions.push(nodes::Instruction::Ldi(nodes::UnaryOp {
                             operand: nodes::Operand::Immediate(0),
                             dest,
                         }));
                         instructions.push(nodes::Instruction::Label(true_label));
                     },
                     tacky::nodes::BinaryOperator::Equal => {
-                        instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                        instructions.push(nodes::Instruction::Ldi(nodes::UnaryOp {
                             operand: nodes::Operand::Immediate(1),
                             dest: dest.clone(),
                         }));
@@ -237,14 +238,14 @@ impl Pass {
                         }));
                         let true_label = self.generate_temporary();
                         instructions.push(nodes::Instruction::JumpCC(nodes::CondCode::E, true_label.clone()));
-                        instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                        instructions.push(nodes::Instruction::Ldi(nodes::UnaryOp {
                             operand: nodes::Operand::Immediate(0),
                             dest,
                         }));
                         instructions.push(nodes::Instruction::Label(true_label));
                     },
                     tacky::nodes::BinaryOperator::NotEqual => {
-                        instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                        instructions.push(nodes::Instruction::Ldi(nodes::UnaryOp {
                             operand: nodes::Operand::Immediate(0),
                             dest: dest.clone(),
                         }));
@@ -254,7 +255,7 @@ impl Pass {
                         }));
                         let not_true_label = self.generate_temporary();
                         instructions.push(nodes::Instruction::JumpCC(nodes::CondCode::E, not_true_label.clone()));
-                        instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                        instructions.push(nodes::Instruction::Ldi(nodes::UnaryOp {
                             operand: nodes::Operand::Immediate(1),
                             dest,
                         }));
@@ -309,13 +310,19 @@ impl Pass {
 
                 for (i, arg) in register_args.iter().enumerate() {
                     instructions.push(nodes::Instruction::Str(nodes::BinOp {
+                        a: self.emit_value(arg),
+                        b: nodes::Operand::Immediate(0),
+                        dest: nodes::Operand::Register(nodes::Reg::RSP),
+                    }));
+                    instructions.push(nodes::Instruction::Sub(nodes::BinOp {
+                        b: nodes::Operand::Immediate(1),
                         a: nodes::Operand::Register(nodes::Reg::RSP),
-                        b: self.emit_value(arg),
-                        dest: unsafe { nodes::Operand::Register(Pass::uint_to_enum(i as u8)) },
+                        dest: nodes::Operand::Register(nodes::Reg::RSP),
                     }));
                 }
 
-                instructions.push(nodes::Instruction::Call(fun_call.function_name.clone()));
+                let name = format!(".{}", fun_call.function_name);
+                instructions.push(nodes::Instruction::Call(name));
 
                 let dst = self.emit_value(&fun_call.dest);
 
