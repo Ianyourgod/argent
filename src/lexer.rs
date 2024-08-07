@@ -159,6 +159,11 @@ impl Lexer {
                     let tok = self.create_token(TokenType::DivideAssign, BLANK, self.line, start_pos, 2);
                     self.read_char();
                     tok
+                } else if self.ch == '/' {
+                    while self.ch != '\n' {
+                        self.read_char();
+                    }
+                    self.next_token() // todo: this is a hack, fix it
                 } else {
                     self.create_token(TokenType::Divide, BLANK, start_line, start_pos, 1)
                 }

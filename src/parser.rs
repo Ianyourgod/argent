@@ -24,10 +24,10 @@ impl Parser {
         }
     }
 
-    fn error(&self, error_message: String, line: usize, position: usize, length: usize, error_code: Option<i32>) {
+    fn error(&self, error_message: String, line: usize, position: usize, length: usize, error_code: Option<i32>) -> ! {
         if self.error_func.is_some() {
             self.error_func.unwrap()(self.input_name.clone(), self.lexer.input.clone(), error_message, line, position, length, error_code);
-            return;
+            panic!();
         }
         
         let lines = self.lexer.input.split('\n').collect::<Vec<&str>>();
@@ -86,7 +86,6 @@ impl Parser {
                 nodes::Statement::FunctionDeclaration(ref f) => f,
                 _ => {
                     self.error("expected function declaration".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
-                    panic!();
                 },
             };
             program.function_definitions.push(fn_def.clone());
@@ -113,7 +112,7 @@ impl Parser {
                 "bool" => nodes::Type::Bool,
                 _ => {
                     self.error(format!("Unknown type: {}", self.cur_token.literal), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
-                    panic!();
+                    
                 },
             }
         } else {
@@ -129,13 +128,13 @@ impl Parser {
                     "fn" => self.parse_function_declaration(),
                     _ => {
                         self.error(format!("Expected top level statement, found {:?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
-                        panic!();
+                        
                     },
                 }
             },
             _ => {
                 self.error(format!("Expected top level statement, found {:?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
-                panic!();
+                
             },
         }
     }
@@ -218,7 +217,7 @@ impl Parser {
             }))
         } else {
             self.error(format!("expected = or ;, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
-            panic!();
+            
         }
     }
 
@@ -343,18 +342,19 @@ impl Parser {
         self.next_token();
 
         // get type
-        if self.cur_token.kind != lexer::TokenType::Arrow {
-            self.error(format!("expected Arrow, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
-        }
+        let kind: nodes::Type;
 
-        self.next_token();
-
-        let kind = self.valid_type();
-
-        self.next_token();
-
-        if self.cur_token.kind != lexer::TokenType::LBrace {
-            self.error(format!("expected LBrace, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+        if self.cur_token.kind == lexer::TokenType::Arrow {
+            self.next_token();
+            kind = self.valid_type();
+            self.next_token();
+            if self.cur_token.kind != lexer::TokenType::LBrace {
+                self.error(format!("expected LBrace, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
+            }
+        } else if self.cur_token.kind == lexer::TokenType::LBrace {
+            kind = nodes::Type::I32;
+        } else {
+            self.error(format!("expected Arrow or LBrace, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
         }
 
         let body = self.parse_statement();
@@ -427,7 +427,7 @@ impl Parser {
             lexer::TokenType::Or => nodes::BinOp::Or,
             _ => {
                 self.error(format!("Expected BinOp, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
-                panic!();
+                
             },
         }
     }
@@ -439,7 +439,7 @@ impl Parser {
             lexer::TokenType::BitwiseComplement => nodes::UnaryOp::BitwiseComplement,
             _ => {
                 self.error(format!("Expected UnaryOp, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
-                panic!();
+                
             },
         }
     }
@@ -483,7 +483,7 @@ impl Parser {
                     },
                     _ => {
                         self.error("Expected identifier".to_string(), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
-                        panic!();
+                        
                     },
                 };
 
@@ -574,7 +574,7 @@ impl Parser {
                     Box::new(nodes::Expression::Literal(nodes::Literal::Bool(false), Some(nodes::Type::Bool)))
                 } else {
                     self.error(format!("Expected factor, found keyword {:#?}", self.cur_token.literal), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
-                    panic!();
+                    
                 }
             }
             lexer::TokenType::Identifier => {
@@ -619,7 +619,7 @@ impl Parser {
                 let node = self.parse_expression(0);
                 if self.cur_token.kind != lexer::TokenType::RParen {
                     self.error(format!("Expected RParen, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
-                    panic!();
+                    
                 }
                 self.next_token();
                 node
@@ -631,7 +631,7 @@ impl Parser {
             }
             _ => {
                 self.error(format!("Expected factor, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
-                panic!();
+                
             },
         }
     }

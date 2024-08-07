@@ -81,7 +81,14 @@ fn error(filename: String, input: String, error_message: String, line: usize, po
     let diff = error_line.len() - error_line.trim_start().len();
 
     let mut arrows = String::new();
-    for _ in 0..(position - diff) {
+
+    let mut pos = 0;
+
+    if position > diff {
+        pos = position - diff;
+    }
+
+    for _ in 0..pos {
         arrows.push_str(" ");
     }
     for _ in position..(position+length) {

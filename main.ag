@@ -1,5 +1,19 @@
-#include "other_file.ag"
+#include "std/output.ag"
 
 fn main() -> int {
-    write_to_num(5);
+    clear_char_buffer();
+    write_char(72);  // H
+    write_char(101); // e
+    write_char(108); // l
+    write_char(108); // l
+    write_char(111); // o
+    write_char(44);  // ,
+    write_char(32);  //  
+    write_char(87);  // W
+    write_char(111); // o
+    write_char(114); // r
+    write_char(108); // l
+    write_char(100); // d
+    write_char(33);  // !
+    show_char_display();
 }

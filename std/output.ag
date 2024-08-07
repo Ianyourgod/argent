@@ -1,0 +1,15 @@
+fn write_to_num(num: int) {
+    mem_write(250, num);
+}
+
+fn write_char(char: int) {
+    mem_write(247, char);
+}
+
+fn show_char_display() {
+    mem_write(248, 1);
+}
+
+fn clear_char_buffer() {
+    mem_write(249, 0);
+}

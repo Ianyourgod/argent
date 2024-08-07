@@ -1,3 +1,0 @@
-fn write_to_num(num: int) -> int {
-    mem_write(250, num);
-}

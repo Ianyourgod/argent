@@ -7,6 +7,7 @@ pub mod nodes;
 mod convert_pass;
 mod pseudo_replace_pass;
 mod inst_fixup_pass;
+mod convert_offsets_pass;
 
 pub struct CodeGen {
     pub program: tacky::nodes::Program,
@@ -36,6 +37,9 @@ impl CodeGen {
         let third_pass = inst_fixup_pass::Pass::new(&second_pass_output);
         let third_pass_output = third_pass.run();
 
-        third_pass_output
+        let fourth_pass = convert_offsets_pass::Pass::new(&third_pass_output);
+        let fourth_pass_output = fourth_pass.run();
+
+        fourth_pass_output
     }
 }
