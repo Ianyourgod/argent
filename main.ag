@@ -1,5 +1,5 @@
+#include "other_file.ag"
+
 fn main() -> int {
-    mem_write(25, 4);
-    let rbp: int = mem_read(25);
-    return rbp;
+    write_to_num(5);
 }
