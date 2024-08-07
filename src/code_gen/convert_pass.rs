@@ -44,15 +44,15 @@ impl Pass {
         let context = nodes::Context { var_map: std::collections::HashMap::new(), stack_offset: 0 };
 
         for (i, arg) in function.arguments.iter().enumerate() {
-            if i < 16 {
-                let reg = unsafe { Pass::uint_to_enum(i as u8) };
+            if i < 15 {
+                let reg = unsafe { Pass::uint_to_enum(i as u8 + 1) };
 
                 instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
                     operand: nodes::Operand::Register(reg),
                     dest: nodes::Operand::Pseudo(arg.0.clone()),
                 }));
             } else {
-                panic!("Only 16 arguments are supported for now");
+                panic!("Only 15 arguments are supported for now");
             }
         }
 
@@ -300,24 +300,14 @@ impl Pass {
                 instructions.push(nodes::Instruction::Label(label.clone()));
             },
             tacky::nodes::Instruction::FunCall(fun_call) => {
-                let mut register_args: Vec<tacky::nodes::Value> = Vec::new();
-
                 for (i, arg) in fun_call.arguments.iter().enumerate() {
-                    register_args.push(arg.clone());
-                }
+                    let val = self.emit_value(arg);
+                    // unsafe stuff time! we need to convert the integer to a register enum
+                    let reg = unsafe { Pass::uint_to_enum(i as u8 + 1) };
 
-                let stack_padding = 0;
-
-                for (i, arg) in register_args.iter().enumerate() {
-                    instructions.push(nodes::Instruction::Str(nodes::BinOp {
-                        a: self.emit_value(arg),
-                        b: nodes::Operand::Immediate(0),
-                        dest: nodes::Operand::Register(nodes::Reg::RSP),
-                    }));
-                    instructions.push(nodes::Instruction::Sub(nodes::BinOp {
-                        b: nodes::Operand::Immediate(1),
-                        a: nodes::Operand::Register(nodes::Reg::RSP),
-                        dest: nodes::Operand::Register(nodes::Reg::RSP),
+                    instructions.push(nodes::Instruction::Mov(nodes::UnaryOp {
+                        operand: val,
+                        dest: nodes::Operand::Register(reg),
                     }));
                 }
 
@@ -343,9 +333,9 @@ impl Pass {
         if value.is_constant() {
             let constant = value.as_constant();
             return if constant.is_i32() {
-                nodes::Operand::Immediate(constant.as_i32() as i8)
+                nodes::Operand::Immediate(constant.as_i32() as u8)
             } else {
-                nodes::Operand::Immediate(constant.as_i64() as i8)
+                nodes::Operand::Immediate(constant.as_i64() as u8)
             }
         }
         panic!("Unsupported value type");

@@ -43,10 +43,10 @@ impl Pass {
         }
     }
 
-    fn arg_is_imm(&self, arg: &nodes::Operand) -> bool {
+    fn arg_is_imm(&self, arg: &nodes::Operand) -> (bool, u8) {
         match arg {
-            nodes::Operand::Immediate(_) => true,
-            _ => false,
+            nodes::Operand::Immediate(val) => (true, *val),
+            _ => (false, 0),
         }
     }
 
@@ -304,23 +304,21 @@ impl Pass {
                 instructions.push(statement.clone());
             }
             nodes::Instruction::Str(ref str) => {
-                let (a_is_mem, a_idx) = self.arg_is_memory(&str.a);
                 let (b_is_mem, b_idx) = self.arg_is_memory(&str.b);
-                let (dest_is_mem, dest_idx) = self.arg_is_memory(&str.dest);
+
+                if !b_is_mem {
+                    panic!("expected offset");
+                }
 
                 // get a into R10 and b into R11
                 self.arg_to_reg(&str.a, instructions, nodes::Reg::R10);
-                self.arg_to_reg(&str.b, instructions, nodes::Reg::R11);
 
-                if dest_is_mem {
-                    instructions.push(nodes::Instruction::Str(nodes::BinOp {
-                        a: nodes::Operand::Register(nodes::Reg::R10),
-                        b: nodes::Operand::Register(nodes::Reg::R11),
-                        dest: nodes::Operand::Memory(dest_idx),
-                    }));
-                    return;
-                }
-                instructions.push(statement.clone());
+                // todo: make this more efficient
+                instructions.push(nodes::Instruction::Str(nodes::BinOp {
+                    a: nodes::Operand::Register(nodes::Reg::R10),
+                    b: str.b.clone(),
+                    dest: str.dest.clone(),
+                }));
             }
             nodes::Instruction::Lod(ref lod) => {
                 let (a_is_mem, a_idx) = self.arg_is_memory(&lod.a);

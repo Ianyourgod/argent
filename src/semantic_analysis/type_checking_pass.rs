@@ -19,6 +19,16 @@ impl Pass {
     pub fn run(&self) -> (nodes::Program, symbol_table::SymbolTable) {
         let mut symbol_table = symbol_table::SymbolTable::new();
 
+        // built-in functions (mem_read, mem_write)
+        symbol_table.insert("mem_read".to_string(), nodes::Type::Fn(
+            vec![nodes::Type::I32],
+            Box::new(nodes::Type::I32)
+        ));
+        symbol_table.insert("mem_write".to_string(), nodes::Type::Fn(
+            vec![nodes::Type::I32, nodes::Type::I32],
+            Box::new(nodes::Type::I32)
+        ));
+
         // put all the functions in there
         for function in &self.program.function_definitions {
             symbol_table.insert(function.function_name.clone(), nodes::Type::Fn(

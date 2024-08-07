@@ -111,7 +111,7 @@ pub struct UnaryOp {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Operand {
     Register(Reg),
-    Immediate(i8),
+    Immediate(u8),
     Memory(u8),
     Pseudo(String),
 }

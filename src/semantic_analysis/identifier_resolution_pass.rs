@@ -135,7 +135,9 @@ impl Pass {
             panic!("Function {} already declared in scope", func.function_name);
         }
 
-        context.identifier_map.map.insert(func.function_name.clone(), (func.function_name.clone(), true));
+        let new_name = format!(".{}", func.function_name);
+
+        context.identifier_map.map.insert(func.function_name.clone(), (new_name.clone(), true));
 
         let mut new_context = context.clone();
 
@@ -152,10 +154,15 @@ impl Pass {
             new_context.identifier_map.map.insert(param.ident.value.clone(), (var_name.clone(), true));
         }
 
+        // TODO: only allow with unsafe block
+        // super low level stuff so we can do cool port stuff
+        new_context.identifier_map.map.insert("mem_read".to_string(), ("mem_read".to_string(), true));
+        new_context.identifier_map.map.insert("mem_write".to_string(), ("mem_write".to_string(), true));
+
         let new_body = self.resolve_statement(func.body, &mut new_context);
 
         nodes::FunctionDeclaration {
-            function_name: func.function_name.clone(),
+            function_name: new_name,
             params: new_params,
             body: new_body,
             return_type: func.return_type.clone(),
@@ -186,8 +193,7 @@ impl Pass {
             },
             nodes::Expression::FunctionCall(ref name, ref args, _) => {
                 let calling_name = if !context.identifier_map.map.contains_key(name) {
-                    //panic!("Function {} not found in scope", name); // for now keep this commented out, it allows for the usage of c libraries before we've implemented imports
-                    name.clone()
+                    panic!("Function {} not found in scope", name);
                 } else {
                     context.identifier_map.map.get(name).unwrap().0.clone()
                 };

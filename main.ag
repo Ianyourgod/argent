@@ -1,7 +1,5 @@
-fn main(argc: int) -> int {
-    let i: int = 0;
-    while i < 5 {
-        i += 1;
-    }
-    return i;
+fn main() -> int {
+    mem_write(25, 4);
+    let rbp: int = mem_read(25);
+    return rbp;
 }
