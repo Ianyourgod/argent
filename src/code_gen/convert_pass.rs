@@ -156,7 +156,46 @@ impl Pass {
                             dest,
                         }));
                     },
-                    tacky::nodes::BinaryOperator::Or => panic!("Unsupported binary operator"),
+                    tacky::nodes::BinaryOperator::Or => {
+                        // nor then not the result
+                        let temp = self.generate_temporary();
+                        instructions.push(nodes::Instruction::Nor(nodes::BinOp {
+                            a: src1,
+                            b: src2,
+                            dest: nodes::Operand::Pseudo(temp.clone()),
+                        }));
+                        instructions.push(nodes::Instruction::Not(nodes::UnaryOp {
+                            operand: nodes::Operand::Pseudo(temp),
+                            dest,
+                        }));
+                    },
+                    tacky::nodes::BinaryOperator::BitwiseAnd => {
+                        instructions.push(nodes::Instruction::And(nodes::BinOp {
+                            a: src1,
+                            b: src2,
+                            dest,
+                        }));
+                    },
+                    tacky::nodes::BinaryOperator::BitwiseOr => {
+                        // nor then not the result
+                        let temp = self.generate_temporary();
+                        instructions.push(nodes::Instruction::Nor(nodes::BinOp {
+                            a: src1,
+                            b: src2,
+                            dest: nodes::Operand::Pseudo(temp.clone()),
+                        }));
+                        instructions.push(nodes::Instruction::Not(nodes::UnaryOp {
+                            operand: nodes::Operand::Pseudo(temp),
+                            dest,
+                        }));
+                    },
+                    tacky::nodes::BinaryOperator::BitwiseXor => {
+                        instructions.push(nodes::Instruction::Xor(nodes::BinOp {
+                            a: src1,
+                            b: src2,
+                            dest,
+                        }));
+                    }
                     tacky::nodes::BinaryOperator::GreaterThan => {
                         instructions.push(nodes::Instruction::Ldi(nodes::UnaryOp {
                             operand: nodes::Operand::Immediate(0),

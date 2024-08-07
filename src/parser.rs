@@ -400,6 +400,9 @@ impl Parser {
             lexer::TokenType::MultiplyAssign | lexer::TokenType::DivideAssign | lexer::TokenType::ModulusAssign => 1,
             lexer::TokenType::Or => 5,
             lexer::TokenType::And => 10,
+            lexer::TokenType::BitwiseOr => 15,
+            lexer::TokenType::BitwiseXor => 20,
+            lexer::TokenType::BitwiseAnd => 25,
             lexer::TokenType::Equal | lexer::TokenType::NotEqual => 30,
             lexer::TokenType::LessThan | lexer::TokenType::GreaterThan |
             lexer::TokenType::LessThanEqual | lexer::TokenType::GreaterThanEqual => 35,
@@ -425,6 +428,9 @@ impl Parser {
             lexer::TokenType::GreaterThanEqual => nodes::BinOp::GreaterThanEqual,
             lexer::TokenType::And => nodes::BinOp::And,
             lexer::TokenType::Or => nodes::BinOp::Or,
+            lexer::TokenType::BitwiseAnd => nodes::BinOp::BitwiseAnd,
+            lexer::TokenType::BitwiseOr => nodes::BinOp::BitwiseOr,
+            lexer::TokenType::BitwiseXor => nodes::BinOp::BitwiseXor,
             _ => {
                 self.error(format!("Expected BinOp, found {:#?}", self.cur_token.kind), self.cur_token.line, self.cur_token.pos, self.cur_token.length, Some(1));
                 
@@ -452,7 +458,9 @@ impl Parser {
             lexer::TokenType::Equal | lexer::TokenType::NotEqual |
             lexer::TokenType::LessThan | lexer::TokenType::GreaterThan |
             lexer::TokenType::LessThanEqual | lexer::TokenType::GreaterThanEqual |
-            lexer::TokenType::And | lexer::TokenType::Or => true,
+            lexer::TokenType::And | lexer::TokenType::Or |
+            lexer::TokenType::BitwiseAnd | lexer::TokenType::BitwiseOr |
+            lexer::TokenType::BitwiseXor |
             lexer::TokenType::Assign |
             lexer::TokenType::AddAssign | lexer::TokenType::SubtractAssign |
             lexer::TokenType::MultiplyAssign | lexer::TokenType::DivideAssign |

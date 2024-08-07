@@ -2,6 +2,14 @@ fn write_to_num(num: int) {
     mem_write(250, num);
 }
 
+fn clear_num() {
+    mem_write(251, 1);
+}
+
+fn num_signed_mode(mode: bool) {
+    mem_write(253-mode, 1);
+}
+
 fn write_char(char: int) {
     mem_write(247, char);
 }
@@ -13,3 +21,4 @@ fn show_char_display() {
 fn clear_char_buffer() {
     mem_write(249, 0);
 }
+

@@ -245,20 +245,28 @@ impl Pass {
                     return (Box::new(nodes::Expression::BinOp(typed_left.0, op, typed_right.0, Some(nodes::Type::I32))), nodes::Type::Bool);
                 }
 
+                /*
                 let can_convert_t = (self.can_convert(&typed_left.1, &typed_right.1),
                     self.can_convert(&typed_right.1, &typed_left.1));
 
-                let can_convert = can_convert_t.0 || can_convert_t.1;
+                let can_convert = can_convert_t.0 || can_convert_t.1 || typed_left.1 == typed_right.1;
 
                 if !can_convert {
                     panic!("Type mismatch: {:?} and {:?}", typed_left.1, typed_right.1);
                 }
+                */
 
-                let common_type = if can_convert_t.0 {
+                let common_type = typed_right.1.clone();
+                /*
+                if can_convert_t.0 {
                     typed_right.1.clone()
-                } else {
+                } else if can_convert_t.1 {
                     typed_left.1.clone()
+                } else {
+                    // they were generic. "convert" to int
+                    nodes::Type::I32
                 };
+                
 
                 //let converted_left = self.convert_to(*typed_left.0.clone(), common_type.clone(), symbol_table);
                 //let converted_right = self.convert_to(*typed_right.0.clone(), common_type.clone(), symbol_table);
@@ -266,6 +274,7 @@ impl Pass {
                 if !can_convert && typed_left.1 != typed_right.1 {
                     panic!("Type mismatch: {:?} and {:?}", typed_left.1, typed_right.1);
                 }
+                */
 
                 let ret_type = if self.is_comparison(op) {
                     nodes::Type::Bool

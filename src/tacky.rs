@@ -288,6 +288,9 @@ impl Tacky {
                     parser::nodes::BinOp::NotEqual => nodes::BinaryOperator::NotEqual,
                     parser::nodes::BinOp::And => nodes::BinaryOperator::And,
                     parser::nodes::BinOp::Or => nodes::BinaryOperator::Or,
+                    parser::nodes::BinOp::BitwiseAnd => nodes::BinaryOperator::BitwiseAnd,
+                    parser::nodes::BinOp::BitwiseOr => nodes::BinaryOperator::BitwiseOr,
+                    parser::nodes::BinOp::BitwiseXor => nodes::BinaryOperator::BitwiseXor,
                     #[allow(unreachable_patterns)]
                     _ => panic!("Not implemented yet")
                 };

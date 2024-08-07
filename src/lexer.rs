@@ -21,6 +21,9 @@ pub enum TokenType {
     LogicalNegation,
     And,
     Or,
+    BitwiseAnd,
+    BitwiseOr,
+    BitwiseXor,
     Equal,
     NotEqual,
     LessThan,
@@ -164,6 +167,23 @@ impl Lexer {
                         self.read_char();
                     }
                     self.next_token() // todo: this is a hack, fix it
+                } else if self.ch == '*' {
+                    self.read_char();
+                    while self.ch != '\0' {
+                        self.read_char();
+                        if self.ch == '*' {
+                            self.read_char();
+                            if self.ch == '/' {
+                                self.read_char();
+                                break;
+                            }
+                        }
+                    }
+                    if self.ch == '\0' {
+                        self.create_token(TokenType::Error, "unexpected EOF".to_string(), self.line, self.line_pos, 1)
+                    } else {
+                        self.next_token() // todo: this is a hack, fix it
+                    }
                 } else {
                     self.create_token(TokenType::Divide, BLANK, start_line, start_pos, 1)
                 }
@@ -199,7 +219,7 @@ impl Lexer {
                     self.read_char();
                     tok
                 } else {
-                    self.create_token(TokenType::Pointer, BLANK, start_line, start_pos, 1)
+                    self.create_token(TokenType::BitwiseAnd, BLANK, start_line, start_pos, 1)
                 }
             },
             '|' => {
@@ -211,8 +231,14 @@ impl Lexer {
                     self.read_char();
                     tok
                 } else {
-                    self.create_token(TokenType::Error, "unexpected character, expected |".to_string(), start_line, start_pos, 1)
+                    //self.create_token(TokenType::Error, "unexpected character".to_string(), self.line, self.line_pos, 1)
+                    self.create_token(TokenType::BitwiseOr, BLANK, start_line, start_pos, 1)
                 }
+            },
+            '^' => {
+                let tok = self.create_token(TokenType::BitwiseXor, BLANK, self.line, self.line_pos, 1);
+                self.read_char();
+                tok
             },
             '=' => {
                 let start_line = self.line;

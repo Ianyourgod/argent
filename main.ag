@@ -1,6 +1,7 @@
 #include "std/output.ag"
 
 fn main() -> int {
+    /*
     clear_char_buffer();
     write_char(72);  // H
     write_char(101); // e
@@ -16,4 +17,8 @@ fn main() -> int {
     write_char(100); // d
     write_char(33);  // !
     show_char_display();
+    */
+    write_to_num(150);
+    num_signed_mode(true);
+    return 0;
 }
